@@ -57,7 +57,7 @@ describe('Orders API with PostgreSQL', () => {
       .expect(201);
 
     createdOrderCode = readString(parseObject(created.text), 'orderCode');
-    expect(created.text).toContain('"status":"CONFIRMED"');
+    expect(created.text).toContain('"status":"PENDING_CONFIRMATION"');
     expect(created.text).toContain('"subtotal":"90000"');
     expect(created.text).toContain('"collectionFee":"30000"');
     expect(created.text).toContain('"totalAmount":"120000"');
@@ -67,10 +67,32 @@ describe('Orders API with PostgreSQL', () => {
     expect(created.text).toContain('"specimenType":"Serum"');
     expect(created.text).toContain('"price":"90000"');
 
-    const fetched = await request(server)
+    const stored = await prisma.order.findUniqueOrThrow({
+      where: { orderCode: createdOrderCode },
+      include: { statusHistory: true },
+    });
+    expect(stored.statusHistory).toHaveLength(1);
+    expect(stored.statusHistory[0]?.status).toBe('PENDING_CONFIRMATION');
+
+    const lookup = await request(server)
+      .post('/orders/lookup')
+      .send({
+        orderCode: createdOrderCode.toLowerCase(),
+        contactPhone: '0900-000-000',
+      })
+      .expect(200);
+    expect(lookup.text).toContain('"maskedPhone":"******0000"');
+    expect(lookup.text).toContain('"timeline"');
+    expect(lookup.text).not.toContain('Synthetic integration address');
+    expect(lookup.text).not.toContain('0900000000');
+
+    const legacy = await request(server)
       .get(`/orders/${createdOrderCode}`)
       .expect(200);
-    expect(fetched.text).toBe(created.text);
+    expect(legacy.body).toEqual(
+      expect.objectContaining({ orderCode: createdOrderCode }),
+    );
+    expect(legacy.text).not.toContain('appointment');
   });
 
   it.each([

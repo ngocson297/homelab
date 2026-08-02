@@ -15,7 +15,7 @@ export type CreateOrderInput = {
 
 export type OrderResponse = {
   orderCode: string;
-  status: "DRAFT" | "CONFIRMED" | "CANCELLED";
+  status: "PENDING_CONFIRMATION" | "CONFIRMED" | "CANCELLED";
   items: Array<{
     labTestId: string;
     testCode: string;
@@ -36,6 +36,36 @@ export type OrderResponse = {
   subtotal: string;
   collectionFee: string;
   totalAmount: string;
+  createdAt: string;
+};
+
+export type PublicOrderResponse = {
+  orderCode: string;
+  status: OrderResponse["status"];
+  statusLabel: string;
+  contact: { maskedPhone: string };
+  appointment: {
+    scheduledDate: string;
+    timeSlot: string;
+    province: string;
+    district: string;
+    ward: string;
+  };
+  items: Array<{
+    testCode: string;
+    testName: string;
+    specimenType: string;
+    price: string;
+  }>;
+  subtotal: string;
+  collectionFee: string;
+  totalAmount: string;
+  timeline: Array<{
+    status: OrderResponse["status"];
+    title: string;
+    description: string | null;
+    occurredAt: string;
+  }>;
   createdAt: string;
 };
 
@@ -60,10 +90,11 @@ export async function createOrder(input: CreateOrderInput): Promise<OrderRespons
   });
 }
 
-export async function getOrder(orderCode: string): Promise<OrderResponse> {
-  return requestOrder(`/orders/${encodeURIComponent(orderCode)}`, {
-    method: "GET",
-  });
+export async function lookupOrder(input: {
+  orderCode: string;
+  contactPhone: string;
+}): Promise<PublicOrderResponse> {
+  return requestLookup(input);
 }
 
 async function requestOrder(path: string, init: RequestInit): Promise<OrderResponse> {
@@ -152,7 +183,7 @@ function isOrderItem(value: unknown): value is OrderResponse["items"][number] {
 }
 
 function isOrderStatus(value: unknown): value is OrderResponse["status"] {
-  return value === "DRAFT" || value === "CONFIRMED" || value === "CANCELLED";
+  return value === "PENDING_CONFIRMATION" || value === "CONFIRMED" || value === "CANCELLED";
 }
 
 function isAppointmentStatus(
@@ -163,4 +194,61 @@ function isAppointmentStatus(
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
+}
+
+async function requestLookup(input: {
+  orderCode: string;
+  contactPhone: string;
+}): Promise<PublicOrderResponse> {
+  let response: Response;
+  try {
+    response = await fetch(`${apiUrl}/orders/lookup`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+      signal: AbortSignal.timeout(requestTimeoutMs),
+    });
+  } catch {
+    throw new OrderApiError("Không thể kết nối tới hệ thống. Vui lòng thử lại.", "network");
+  }
+  const payload: unknown = await response.json().catch(() => null);
+  if (!response.ok) {
+    const message = response.status === 404
+      ? "Không tìm thấy đơn phù hợp với thông tin đã cung cấp."
+      : response.status === 400
+        ? "Thông tin tra cứu chưa hợp lệ."
+        : response.status === 429
+          ? "Bạn đã tra cứu quá nhiều lần. Vui lòng thử lại sau."
+        : "Hệ thống chưa thể tra cứu đơn lúc này. Vui lòng thử lại.";
+    throw new OrderApiError(message, "api", response.status);
+  }
+  if (!isPublicOrderResponse(payload)) {
+    throw new OrderApiError("Hệ thống trả về dữ liệu không hợp lệ. Vui lòng thử lại sau.", "invalid-response");
+  }
+  return payload;
+}
+
+function isPublicOrderResponse(value: unknown): value is PublicOrderResponse {
+  return isRecord(value) && typeof value.orderCode === "string" &&
+    isOrderStatus(value.status) && typeof value.statusLabel === "string" &&
+    isRecord(value.contact) && typeof value.contact.maskedPhone === "string" &&
+    isRecord(value.appointment) && typeof value.appointment.scheduledDate === "string" &&
+    typeof value.appointment.timeSlot === "string" && typeof value.appointment.province === "string" &&
+    typeof value.appointment.district === "string" && typeof value.appointment.ward === "string" &&
+    Array.isArray(value.items) && value.items.every(isPublicOrderItem) &&
+    typeof value.subtotal === "string" && typeof value.collectionFee === "string" &&
+    typeof value.totalAmount === "string" && Array.isArray(value.timeline) &&
+    value.timeline.every(isTimelineItem) && typeof value.createdAt === "string";
+}
+
+function isPublicOrderItem(value: unknown): boolean {
+  return isRecord(value) && typeof value.testCode === "string" &&
+    typeof value.testName === "string" && typeof value.specimenType === "string" &&
+    typeof value.price === "string";
+}
+
+function isTimelineItem(value: unknown): boolean {
+  return isRecord(value) && isOrderStatus(value.status) && typeof value.title === "string" &&
+    (typeof value.description === "string" || value.description === null) &&
+    typeof value.occurredAt === "string";
 }

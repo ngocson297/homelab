@@ -54,7 +54,7 @@ model LabTest {
 }
 
 enum OrderStatus {
-  DRAFT
+  PENDING_CONFIRMATION
   CONFIRMED
   CANCELLED
 }
@@ -62,7 +62,7 @@ enum OrderStatus {
 model Order {
   id            String       @id @default(uuid())
   orderCode     String       @unique
-  status        OrderStatus  @default(DRAFT)
+  status        OrderStatus  @default(PENDING_CONFIRMATION)
   contactName   String
   contactPhone  String
   subtotal      Decimal      @db.Decimal(12, 2)
@@ -72,8 +72,22 @@ model Order {
   updatedAt     DateTime     @updatedAt
   items         OrderItem[]
   appointment   Appointment?
+  statusHistory OrderStatusHistory[]
 
   @@index([createdAt])
+}
+
+model OrderStatusHistory {
+  id          String      @id @default(uuid())
+  orderId     String
+  status      OrderStatus
+  title       String
+  description String?     @db.Text
+  occurredAt  DateTime    @default(now())
+  createdAt   DateTime    @default(now())
+  order       Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId, occurredAt])
 }
 
 model OrderItem {

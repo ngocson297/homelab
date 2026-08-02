@@ -16,7 +16,7 @@ test("renders, searches, filters, and opens a test detail", async ({ page }) => 
     page.locator("h3:visible", { hasText: "Complete Blood Count" }),
   ).toBeVisible();
 
-  await page.getByLabel("Có thể lấy mẫu tại nhà").check();
+  await page.locator('input[name="homeCollectable"]:visible').check();
   await page.getByRole("button", { name: "Tìm kiếm" }).click();
   await expect(page).toHaveURL(/homeCollectable=true/);
 

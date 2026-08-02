@@ -17,7 +17,9 @@ export default defineConfig({
       reuseExistingServer: !process.env.CI,
       timeout: 60_000,
       env: {
-        DATABASE_URL: process.env.DATABASE_URL ?? "",
+        ...(process.env.DATABASE_URL
+          ? { DATABASE_URL: process.env.DATABASE_URL }
+          : {}),
         API_PORT: "3001",
         NODE_ENV: "test",
       },

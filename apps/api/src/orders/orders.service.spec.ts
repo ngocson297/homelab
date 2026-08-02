@@ -58,6 +58,17 @@ const storedOrder = {
   totalAmount: new Prisma.Decimal('270000.00'),
   createdAt,
   updatedAt: createdAt,
+  statusHistory: [
+    {
+      id: '92a71194-33ee-4e6a-86f5-967f0eea8799',
+      orderId: '24cd16e1-083c-49fe-b833-6b1b047f6019',
+      status: OrderStatus.CONFIRMED,
+      title: 'Order confirmed',
+      description: null,
+      occurredAt: createdAt,
+      createdAt,
+    },
+  ],
   items: availableTests.map((test, index) => ({
     id: index === 0 ? firstId : secondId,
     orderId: '24cd16e1-083c-49fe-b833-6b1b047f6019',
@@ -162,6 +173,14 @@ describe('OrdersService', () => {
         }),
       ],
     });
+    expect(createArgs.data.status).toBe(OrderStatus.PENDING_CONFIRMATION);
+    expect(createArgs.data.statusHistory).toEqual({
+      create: {
+        status: OrderStatus.PENDING_CONFIRMATION,
+        title: 'Đã tiếp nhận yêu cầu',
+        description: 'HomeLab đã nhận được yêu cầu đặt lịch của bạn.',
+      },
+    });
     expect(result).toEqual(
       expect.objectContaining({
         subtotal: '240000',
@@ -218,5 +237,31 @@ describe('OrdersService', () => {
     await expect(
       service.findByOrderCode('HL-20260802-000000000000'),
     ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('looks up by normalized credentials and excludes sensitive details', async () => {
+    prisma.order.findUnique.mockResolvedValueOnce(storedOrder);
+    const result = await service.lookup({
+      orderCode: ` ${storedOrder.orderCode.toLowerCase()} `,
+      contactPhone: '+84 900-000-000',
+    });
+    expect(result.contact.maskedPhone).toBe('******0000');
+    expect(result.timeline).toHaveLength(1);
+    expect(result.appointment).not.toHaveProperty('addressLine');
+    expect(result.items[0]).not.toHaveProperty('labTestId');
+  });
+
+  it('uses one generic error for an incorrect phone', async () => {
+    prisma.order.findUnique.mockResolvedValueOnce(storedOrder);
+    await expect(
+      service.lookup({
+        orderCode: storedOrder.orderCode,
+        contactPhone: '0911111111',
+      }),
+    ).rejects.toMatchObject({
+      response: {
+        message: 'Không tìm thấy đơn phù hợp với thông tin đã cung cấp.',
+      },
+    });
   });
 });

@@ -1,5 +1,6 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import {
@@ -37,6 +38,17 @@ const order = {
   totalAmount: new Prisma.Decimal('180000.00'),
   createdAt,
   updatedAt: createdAt,
+  statusHistory: [
+    {
+      id: '82b71194-33ee-4e6a-86f5-967f0eea8790',
+      orderId: '24cd16e1-083c-49fe-b833-6b1b047f6019',
+      status: OrderStatus.CONFIRMED,
+      title: 'Order confirmed',
+      description: null,
+      occurredAt: createdAt,
+      createdAt,
+    },
+  ],
   items: [
     {
       id: '38df7d6e-ff34-499a-ac16-56bd279a46ee',
@@ -133,10 +145,68 @@ describe('Orders API (integration)', () => {
       .get(`/orders/${orderCode}`)
       .expect(200);
 
-    expect(response.text).toContain('"testCode":"CBC"');
-    expect(response.text).toContain('"testName":"Complete Blood Count"');
-    expect(response.text).toContain('"price":"150000"');
-    expect(response.text).not.toContain('"orderId"');
+    expect(response.body).toEqual({
+      orderCode,
+      status: OrderStatus.CONFIRMED,
+      statusLabel: 'Đã xác nhận',
+      createdAt: createdAt.toISOString(),
+    });
+    expect(response.text).not.toContain('contactPhone');
+    expect(response.text).not.toContain('addressLine');
+    expect(response.text).not.toContain('testName');
+  });
+
+  it('POST /orders/lookup normalizes credentials and removes sensitive fields', async () => {
+    const response = await request(server)
+      .post('/orders/lookup')
+      .send({
+        orderCode: `  ${orderCode.toLowerCase()} `,
+        contactPhone: '0900-000-000',
+      })
+      .expect(200);
+    expect(response.text).toContain('"maskedPhone":"******0000"');
+    expect(response.text).toContain('"timeline":[{');
+    expect(response.text).not.toContain('Synthetic test address');
+    expect(response.text).not.toContain(labTestId);
+    expect(response.text).not.toContain(requestBody.contactPhone);
+    expect(response.text).not.toContain('"addressLine"');
+  });
+
+  it.each([
+    [orderCode, '0911111111'],
+    ['HL-20260802-000000000000', requestBody.contactPhone],
+    ['HL-20260802-000000000000', '0911111111'],
+  ])(
+    'returns the same lookup error for mismatched credentials',
+    async (code, phone) => {
+      if (code !== orderCode)
+        prisma.order.findUnique.mockResolvedValueOnce(null);
+      const response = await request(server)
+        .post('/orders/lookup')
+        .send({ orderCode: code, contactPhone: phone })
+        .expect(404);
+      expect(response.text).toContain(
+        'Không tìm thấy đơn phù hợp với thông tin đã cung cấp.',
+      );
+    },
+  );
+
+  it.each([{ contactPhone: requestBody.contactPhone }, { orderCode }])(
+    'validates missing lookup credentials',
+    (body) => request(server).post('/orders/lookup').send(body).expect(400),
+  );
+
+  it('documents the lookup request, public response, and error statuses', () => {
+    const document = SwaggerModule.createDocument(
+      app,
+      new DocumentBuilder().setTitle('Synthetic API').build(),
+    );
+    const operation = document.paths['/orders/lookup']?.post;
+    expect(operation?.requestBody).toBeDefined();
+    expect(operation?.responses['200']).toBeDefined();
+    expect(operation?.responses['400']).toBeDefined();
+    expect(operation?.responses['404']).toBeDefined();
+    expect(operation?.responses['429']).toBeDefined();
   });
 
   it.each([
