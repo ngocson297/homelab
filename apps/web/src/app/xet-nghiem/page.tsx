@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { AddToCartButton } from "@/components/add-to-cart-button";
 import { formatPrice, getLabTests } from "@/lib/lab-tests";
 
 export const metadata: Metadata = {
@@ -126,9 +127,9 @@ export default async function TestCatalogPage({
                     <dt className="text-slate-500">Trả kết quả</dt><dd className="text-right font-medium text-slate-800">Khoảng {test.turnaroundTimeHours} giờ</dd>
                   </div>
                 </dl>
-                <div className="mt-auto flex items-end justify-between gap-4 pt-6">
+                <div className="mt-auto flex flex-wrap items-end justify-between gap-4 pt-6">
                   <div><p className="text-xs text-slate-500">Giá tham khảo</p><p className="mt-1 text-lg font-bold text-slate-950">{formatPrice(test.price)}</p></div>
-                  <Link href={`/xet-nghiem/${test.id}`} className="rounded-lg border border-slate-300 px-3.5 py-2 text-sm font-semibold text-slate-800 transition hover:border-teal-700 hover:text-teal-800">Chi tiết</Link>
+                  <div className="flex flex-wrap gap-2"><Link href={`/xet-nghiem/${test.id}`} className="inline-flex min-h-11 items-center rounded-lg border border-slate-300 px-3.5 text-sm font-semibold text-slate-800 transition hover:border-teal-700 hover:text-teal-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-800">Chi tiết</Link><AddToCartButton test={test} /></div>
                 </div>
               </article>
             ))}

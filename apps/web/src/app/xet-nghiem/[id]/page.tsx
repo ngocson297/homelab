@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { AddToCartButton } from "@/components/add-to-cart-button";
 import { formatPrice, getLabTest } from "@/lib/lab-tests";
 
 export const metadata: Metadata = {
@@ -63,6 +64,7 @@ export default async function TestDetailPage({
             <div className="mt-6 rounded-xl border border-slate-200 bg-white p-4 text-sm leading-6 text-slate-600">
               Giá hiển thị dành cho dịch vụ trong danh mục và có thể được xác nhận lại khi đặt lịch.
             </div>
+            <div className="mt-6"><AddToCartButton test={test} /></div>
             <Link href="/xet-nghiem" className="mt-6 flex min-h-12 items-center justify-center rounded-xl bg-slate-900 px-5 text-center font-semibold text-white transition hover:bg-slate-700">
               Xem xét nghiệm khác
             </Link>

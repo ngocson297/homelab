@@ -41,7 +41,7 @@ function isNullableString(value: unknown): value is string | null {
   return typeof value === "string" || value === null;
 }
 
-function isLabTest(value: unknown): value is LabTest {
+export function isLabTest(value: unknown): value is LabTest {
   if (!isRecord(value)) return false;
 
   return (
@@ -128,7 +128,7 @@ export async function getLabTest(id: string): Promise<LabTest | null> {
   return payload;
 }
 
-export function formatPrice(price: string): string {
+export function formatPrice(price: string | number): string {
   return new Intl.NumberFormat("vi-VN", {
     style: "currency",
     currency: "VND",
