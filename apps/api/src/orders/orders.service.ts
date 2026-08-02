@@ -51,6 +51,16 @@ export class OrdersService {
     if (new Set(dto.labTestIds).size !== dto.labTestIds.length) {
       throw new BadRequestException('Duplicate lab test IDs are not allowed');
     }
+    const dateOfBirth = new Date(`${dto.subject.dateOfBirth}T00:00:00.000Z`);
+    const oldestReasonable = new Date();
+    oldestReasonable.setUTCFullYear(oldestReasonable.getUTCFullYear() - 130);
+    if (
+      Number.isNaN(dateOfBirth.getTime()) ||
+      dateOfBirth.toISOString().slice(0, 10) !== dto.subject.dateOfBirth ||
+      dateOfBirth > new Date() ||
+      dateOfBirth < oldestReasonable
+    )
+      throw new BadRequestException('Subject date of birth is invalid');
 
     const order = await this.prisma.transaction(async (transaction) => {
       const availableTests = await transaction.labTest.findMany({
@@ -99,6 +109,15 @@ export class OrdersService {
           subtotal,
           collectionFee,
           totalAmount: subtotal.plus(collectionFee),
+          subject: {
+            create: {
+              fullName: dto.subject.fullName.trim(),
+              dateOfBirth,
+              sex: dto.subject.sex,
+              relationshipToContact:
+                dto.subject.relationshipToContact?.trim() || null,
+            },
+          },
           items: {
             create: orderedTests.map((test) => ({
               labTestId: test.id,
@@ -261,6 +280,9 @@ function maskPhone(value: string): string {
 function statusLabel(status: OrderStatus): string {
   if (status === OrderStatus.CONFIRMED) return 'Đã xác nhận';
   if (status === OrderStatus.COLLECTOR_ASSIGNED) return 'Đã phân công lấy mẫu';
+  if (status === OrderStatus.COLLECTOR_ON_THE_WAY) return 'Đang di chuyển';
+  if (status === OrderStatus.COLLECTED) return 'Đã lấy mẫu';
+  if (status === OrderStatus.IN_TRANSIT) return 'Mẫu đang vận chuyển';
   if (status === OrderStatus.CANCELLED) return 'Đã hủy';
   return 'Chờ xác nhận';
 }

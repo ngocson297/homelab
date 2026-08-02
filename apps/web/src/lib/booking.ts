@@ -17,6 +17,10 @@ export type BookingFormValues = {
   ward: string;
   addressLine: string;
   note: string;
+  subjectFullName: string;
+  subjectDateOfBirth: string;
+  subjectSex: "" | "MALE" | "FEMALE" | "OTHER" | "UNKNOWN";
+  relationshipToContact: string;
 };
 
 export type BookingFormErrors = Partial<Record<keyof BookingFormValues, string>>;
@@ -39,6 +43,10 @@ export const EMPTY_BOOKING_FORM: BookingFormValues = {
   ward: "",
   addressLine: "",
   note: "",
+  subjectFullName: "",
+  subjectDateOfBirth: "",
+  subjectSex: "",
+  relationshipToContact: "",
 };
 
 export function validateBookingForm(
@@ -46,6 +54,13 @@ export function validateBookingForm(
   today = localDateInputValue(new Date()),
 ): BookingFormErrors {
   const errors: BookingFormErrors = {};
+  if (!values.subjectFullName.trim()) errors.subjectFullName = "Vui lòng nhập họ và tên người được xét nghiệm.";
+  else if (values.subjectFullName.trim().length > 100) errors.subjectFullName = "Họ và tên không được vượt quá 100 ký tự.";
+  if (!values.subjectDateOfBirth) errors.subjectDateOfBirth = "Vui lòng nhập ngày sinh.";
+  else if (values.subjectDateOfBirth > today) errors.subjectDateOfBirth = "Ngày sinh không được nằm trong tương lai.";
+  else { const oldest = new Date(); oldest.setFullYear(oldest.getFullYear() - 130); if (values.subjectDateOfBirth < localDateInputValue(oldest)) errors.subjectDateOfBirth = "Ngày sinh chưa hợp lý."; }
+  if (!values.subjectSex) errors.subjectSex = "Vui lòng chọn giới tính dùng cho xét nghiệm.";
+  if (values.relationshipToContact.trim().length > 100) errors.relationshipToContact = "Mối quan hệ không được vượt quá 100 ký tự.";
   if (!values.contactName.trim()) errors.contactName = "Vui lòng nhập họ và tên.";
   else if (values.contactName.trim().length > 100)
     errors.contactName = "Họ và tên không được vượt quá 100 ký tự.";
@@ -80,6 +95,7 @@ export function toCreateOrderInput(
     labTestIds,
     contactName: values.contactName.trim(),
     contactPhone: values.contactPhone.replace(/[ .-]/g, ""),
+    subject: { fullName: values.subjectFullName.trim(), dateOfBirth: values.subjectDateOfBirth, sex: values.subjectSex as Exclude<BookingFormValues["subjectSex"], "">, relationshipToContact: values.relationshipToContact.trim() || null },
     appointment: {
       scheduledDate: `${values.scheduledDate}T${startTime}:00+07:00`,
       timeSlot: values.timeSlot,

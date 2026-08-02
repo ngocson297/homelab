@@ -24,6 +24,11 @@ const detailInclude = {
   appointment: true,
   statusHistory: { orderBy: { occurredAt: 'asc' as const } },
   currentCollector: { include: { staffUser: true } },
+  subject: true,
+  collectionAttempts: {
+    include: { collectorProfile: true },
+    orderBy: { attemptNumber: 'desc' as const },
+  },
 } satisfies Prisma.OrderInclude;
 type DetailedOrder = Prisma.OrderGetPayload<{ include: typeof detailInclude }>;
 
@@ -386,6 +391,26 @@ export class AdminOrdersService {
             operationalStatus: order.currentCollector.operationalStatus,
           }
         : null,
+      subject: order.subject
+        ? {
+            fullName: order.subject.fullName,
+            dateOfBirth: order.subject.dateOfBirth.toISOString().slice(0, 10),
+            sex: order.subject.sex,
+            relationshipToContact: order.subject.relationshipToContact,
+          }
+        : null,
+      collectionAttempts: order.collectionAttempts.map((attempt) => ({
+        attemptNumber: attempt.attemptNumber,
+        collectorEmployeeCode: attempt.collectorProfile.employeeCode,
+        status: attempt.status,
+        startedAt: attempt.startedAt,
+        collectedAt: attempt.collectedAt,
+        inTransitAt: attempt.inTransitAt,
+        failedAt: attempt.failedAt,
+        failureReason: attempt.failureReason,
+      })),
+      requiresCollectionAttention:
+        order.collectionAttempts[0]?.status === 'FAILED',
       createdAt: order.createdAt,
       updatedAt: order.updatedAt,
     };
@@ -452,6 +477,9 @@ function escapeRegExp(value: string) {
 }
 function statusLabel(status: OrderStatus) {
   if (status === OrderStatus.COLLECTOR_ASSIGNED) return 'Đã phân công lấy mẫu';
+  if (status === OrderStatus.COLLECTOR_ON_THE_WAY) return 'Đang di chuyển';
+  if (status === OrderStatus.COLLECTED) return 'Đã lấy mẫu';
+  if (status === OrderStatus.IN_TRANSIT) return 'Mẫu đang vận chuyển';
   return status === OrderStatus.CONFIRMED
     ? 'Đã xác nhận'
     : status === OrderStatus.CANCELLED

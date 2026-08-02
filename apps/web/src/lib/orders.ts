@@ -2,6 +2,7 @@ export type CreateOrderInput = {
   labTestIds: string[];
   contactName: string;
   contactPhone: string;
+  subject: { fullName: string; dateOfBirth: string; sex: "MALE" | "FEMALE" | "OTHER" | "UNKNOWN"; relationshipToContact: string | null };
   appointment: {
     scheduledDate: string;
     timeSlot: string;
@@ -15,7 +16,7 @@ export type CreateOrderInput = {
 
 export type OrderResponse = {
   orderCode: string;
-  status: "PENDING_CONFIRMATION" | "CONFIRMED" | "CANCELLED";
+  status: "PENDING_CONFIRMATION" | "CONFIRMED" | "COLLECTOR_ASSIGNED" | "COLLECTOR_ON_THE_WAY" | "COLLECTED" | "IN_TRANSIT" | "CANCELLED";
   items: Array<{
     labTestId: string;
     testCode: string;
@@ -183,7 +184,7 @@ function isOrderItem(value: unknown): value is OrderResponse["items"][number] {
 }
 
 function isOrderStatus(value: unknown): value is OrderResponse["status"] {
-  return value === "PENDING_CONFIRMATION" || value === "CONFIRMED" || value === "CANCELLED";
+  return ["PENDING_CONFIRMATION", "CONFIRMED", "COLLECTOR_ASSIGNED", "COLLECTOR_ON_THE_WAY", "COLLECTED", "IN_TRANSIT", "CANCELLED"].includes(String(value));
 }
 
 function isAppointmentStatus(

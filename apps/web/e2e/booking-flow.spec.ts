@@ -6,8 +6,11 @@ test("books and securely looks up an order", async ({ page }) => {
   await page.getByRole("link", { name: /Giỏ xét nghiệm, 1 xét nghiệm/ }).click();
   await page.getByRole("link", { name: "Tiếp tục đặt lịch" }).click();
 
-  await page.getByLabel("Họ và tên").fill("Synthetic Browser Customer");
+  await page.getByLabel("Họ và tên", { exact: true }).fill("Synthetic Browser Customer");
   await page.getByLabel("Số điện thoại").fill("0900000000");
+  await page.getByLabel("Họ và tên người được xét nghiệm").fill("Synthetic Browser Subject");
+  await page.getByLabel("Ngày sinh").fill("1990-01-20");
+  await page.getByLabel("Giới tính dùng cho thông tin xét nghiệm").selectOption("UNKNOWN");
   await page.getByLabel("Ngày lấy mẫu").fill("2099-08-05");
   await page.getByLabel("Khung giờ").selectOption("07:00-09:00");
   await page.getByLabel("Tỉnh / thành phố").fill("Da Nang");

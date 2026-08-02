@@ -19,6 +19,10 @@ const valid: BookingFormValues = {
   ward: " Hoa Cuong ",
   addressLine: " Synthetic test address ",
   note: " Test note ",
+  subjectFullName: " Synthetic Subject ",
+  subjectDateOfBirth: "1990-01-20",
+  subjectSex: "UNKNOWN",
+  relationshipToContact: " Self ",
 };
 
 describe("booking validation", () => {
@@ -34,6 +38,9 @@ describe("booking validation", () => {
         "district",
         "ward",
         "addressLine",
+        "subjectFullName",
+        "subjectDateOfBirth",
+        "subjectSex",
       ]),
     );
   });
@@ -61,6 +68,7 @@ describe("booking validation", () => {
       labTestIds: ["lab-id"],
       contactName: "Synthetic Customer",
       contactPhone: "0900000000",
+      subject: { fullName: "Synthetic Subject", dateOfBirth: "1990-01-20", sex: "UNKNOWN", relationshipToContact: "Self" },
       appointment: {
         scheduledDate: "2026-08-05T07:00:00+07:00",
         timeSlot: "07:00-09:00",

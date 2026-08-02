@@ -121,6 +121,13 @@ describe('Collector management and assignment (PostgreSQL)', () => {
         subtotal: '100000',
         collectionFee: '20000',
         totalAmount: '120000',
+        subject: {
+          create: {
+            fullName: 'Synthetic Subject',
+            dateOfBirth: new Date('1990-01-20T00:00:00Z'),
+            sex: 'UNKNOWN',
+          },
+        },
         appointment: {
           create: {
             scheduledDate: new Date(Date.now() + offsetDays * 86_400_000),

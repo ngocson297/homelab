@@ -19,6 +19,12 @@ const dto: CreateOrderDto = {
   labTestIds: [firstId, secondId],
   contactName: 'Synthetic Customer',
   contactPhone: '0900000000',
+  subject: {
+    fullName: 'Synthetic Subject',
+    dateOfBirth: '1990-01-20',
+    sex: 'UNKNOWN',
+    relationshipToContact: null,
+  },
   appointment: {
     scheduledDate: '2026-08-05T08:00:00+07:00',
     timeSlot: '08:00-10:00',

@@ -1,0 +1,18 @@
+import type { OrderStatus } from '@/lib/admin-orders';
+const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
+export type CollectorProfile = { employeeCode:string;fullName:string;email:string;maskedPhone:string;operationalStatus:string;serviceAreas:{province:string;district:string|null}[] };
+export type CollectorOrderItem = { orderCode:string;status:OrderStatus;statusLabel:string;appointment:null|{scheduledDate:string;timeSlot:string;province:string;district:string;ward:string};subject:{displayName:string};itemCount:number;version:number };
+export type CollectorOrderList = {data:CollectorOrderItem[];pagination:{page:number;limit:number;total:number;totalPages:number}};
+export type CollectorOrderDetail = {orderCode:string;status:OrderStatus;statusLabel:string;version:number;contact:{name:string;phone:string};subject:null|{fullName:string;dateOfBirth:string;sex:string;relationshipToContact:string|null};appointment:{scheduledDate:string;timeSlot:string;province:string;district:string;ward:string;addressLine:string;note:string|null};items:{testCode:string;testName:string;specimenType:string;preparationInstruction:string|null}[];currentAttempt:null|{attemptNumber:number;status:string;startedAt:string;collectedAt:string|null;inTransitAt:string|null;failedAt:string|null};timeline:{status:OrderStatus;title:string;description:string|null;occurredAt:string}[]};
+export class CollectorPortalError extends Error { constructor(message:string,readonly status:number){super(message);} }
+async function request<T>(path:string,init?:RequestInit):Promise<T>{let response:Response;try{response=await fetch(`${apiUrl}${path}`,{...init,credentials:'include',cache:'no-store',headers:{'Content-Type':'application/json',...init?.headers},signal:AbortSignal.timeout(10000)});}catch{throw new CollectorPortalError('Không thể kết nối hệ thống.',0);}const value:unknown=await response.json().catch(()=>null);if(!response.ok){const message=response.status===409?'Dữ liệu đã thay đổi. Vui lòng tải lại.':response.status===401?'Phiên đăng nhập đã hết hạn.':response.status===403?'Bạn không có quyền thực hiện thao tác này.':readMessage(value)??'Không thể xử lý yêu cầu.';throw new CollectorPortalError(message,response.status);}return value as T;}
+function readMessage(value:unknown){return typeof value==='object'&&value!==null&&'message'in value&&typeof value.message==='string'?value.message:null;}
+export const getCollectorMe=()=>request<CollectorProfile>('/collector/me');
+export const getCollectorSummary=()=>request<{today:number;upcoming:number;onTheWay:number;collected:number}>('/collector/orders/summary');
+export const getCollectorOrders=(query:string)=>request<CollectorOrderList>(`/collector/orders${query?`?${query}`:''}`);
+export const getCollectorOrder=(code:string)=>request<CollectorOrderDetail>(`/collector/orders/${encodeURIComponent(code)}`);
+const patch=(code:string,action:string,body:unknown)=>request<CollectorOrderDetail>(`/collector/orders/${encodeURIComponent(code)}/${action}`,{method:'PATCH',body:JSON.stringify(body)});
+export const startJourney=(code:string,expectedVersion:number)=>patch(code,'start-journey',{expectedVersion});
+export const markCollected=(code:string,expectedVersion:number,fullNameConfirmed:boolean,dateOfBirthConfirmed:boolean,consentConfirmed:boolean)=>patch(code,'mark-collected',{expectedVersion,identityConfirmation:{fullNameConfirmed,dateOfBirthConfirmed},consentConfirmed});
+export const markInTransit=(code:string,expectedVersion:number)=>patch(code,'mark-in-transit',{expectedVersion});
+export const reportFailure=(code:string,expectedVersion:number,reason:string,note:string)=>patch(code,'report-failure',{expectedVersion,reason,note:note.trim()||undefined});

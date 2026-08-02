@@ -41,6 +41,7 @@ const collectorInclude = {
 const assignmentInclude = {
   appointment: true,
   currentCollector: true,
+  subject: true,
 } satisfies Prisma.OrderInclude;
 type AssignmentOrder = Prisma.OrderGetPayload<{
   include: typeof assignmentInclude;
@@ -485,6 +486,8 @@ export class CollectorsService {
       );
     if (!order.appointment || order.appointment.status === 'CANCELLED')
       throw new ConflictException('Lịch hẹn không còn hợp lệ');
+    if (!order.subject)
+      throw new ConflictException('Thiếu thông tin người xét nghiệm');
   }
   private assertEligibleCollector(
     profile: CollectorCandidate,

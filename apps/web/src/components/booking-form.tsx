@@ -31,6 +31,7 @@ export function BookingForm() {
   const [checkingCart, setCheckingCart] = useState(true);
   const [cartError, setCartError] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [subjectIsContact, setSubjectIsContact] = useState(false);
   const submittingRef = useRef(false);
 
   useEffect(() => {
@@ -149,6 +150,16 @@ export function BookingForm() {
               <legend className="col-span-full text-lg font-bold">Thông tin liên hệ</legend>
               <TextField id="contactName" label="Họ và tên" autoComplete="name" value={values.contactName} error={errors.contactName} onChange={(value) => updateField("contactName", value)} />
               <TextField id="contactPhone" label="Số điện thoại" inputMode="tel" autoComplete="tel" value={values.contactPhone} error={errors.contactPhone} onChange={(value) => updateField("contactPhone", value)} />
+            </fieldset>
+
+            <fieldset className="grid gap-5 sm:grid-cols-2" disabled={submitting}>
+              <legend className="col-span-full text-lg font-bold">Thông tin người được xét nghiệm</legend>
+              <p className="col-span-full text-sm text-slate-600">Thông tin này được dùng để xác minh đúng người lấy mẫu và phục vụ khoảng tham chiếu xét nghiệm.</p>
+              <label className="col-span-full flex items-center gap-2"><input type="checkbox" checked={subjectIsContact} onChange={(event) => { const checked = event.target.checked; setSubjectIsContact(checked); if (checked) updateField("subjectFullName", values.contactName); }} />Người được xét nghiệm cũng là người liên hệ</label>
+              <TextField id="subjectFullName" label="Họ và tên người được xét nghiệm" autoComplete="off" value={values.subjectFullName} error={errors.subjectFullName} onChange={(value) => updateField("subjectFullName", value)} />
+              <TextField id="subjectDateOfBirth" label="Ngày sinh" type="date" value={values.subjectDateOfBirth} error={errors.subjectDateOfBirth} onChange={(value) => updateField("subjectDateOfBirth", value)} />
+              <div><label htmlFor="subjectSex" className="block text-sm font-semibold">Giới tính dùng cho thông tin xét nghiệm</label><select id="subjectSex" value={values.subjectSex} onChange={(e) => updateField("subjectSex", e.target.value)} aria-invalid={Boolean(errors.subjectSex)} aria-describedby={errors.subjectSex ? "subjectSex-error" : undefined} className={inputClass(Boolean(errors.subjectSex))}><option value="">Chọn</option><option value="MALE">Nam</option><option value="FEMALE">Nữ</option><option value="OTHER">Khác</option><option value="UNKNOWN">Không xác định</option></select><FieldError id="subjectSex-error" message={errors.subjectSex} /></div>
+              <TextField id="relationshipToContact" label="Mối quan hệ với người liên hệ (không bắt buộc)" autoComplete="off" value={values.relationshipToContact} error={errors.relationshipToContact} onChange={(value) => updateField("relationshipToContact", value)} />
             </fieldset>
 
             <fieldset className="grid gap-5 sm:grid-cols-2" disabled={submitting}>

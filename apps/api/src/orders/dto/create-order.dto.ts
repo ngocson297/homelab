@@ -14,7 +14,10 @@ import {
   MaxLength,
   MinLength,
   ValidateNested,
+  IsEnum,
+  IsDefined,
 } from 'class-validator';
+import { SubjectSex } from '../../generated/prisma/client';
 
 export class CreateAppointmentDto {
   @ApiProperty({ example: '2026-08-05T08:00:00+07:00' })
@@ -56,6 +59,28 @@ export class CreateAppointmentDto {
   note?: string | null;
 }
 
+export class CreateOrderSubjectDto {
+  @ApiProperty({ example: 'Nguyen Van Test', maxLength: 100 })
+  @IsString()
+  @MinLength(2)
+  @MaxLength(100)
+  fullName!: string;
+
+  @ApiProperty({ example: '1990-01-20', format: 'date' })
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  dateOfBirth!: string;
+
+  @ApiProperty({ enum: SubjectSex })
+  @IsEnum(SubjectSex)
+  sex!: SubjectSex;
+
+  @ApiPropertyOptional({ nullable: true, maxLength: 100 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  relationshipToContact?: string | null;
+}
+
 export class CreateOrderDto {
   @ApiProperty({ type: [String], format: 'uuid', minItems: 1, maxItems: 50 })
   @IsArray()
@@ -79,4 +104,10 @@ export class CreateOrderDto {
   @ValidateNested()
   @Type(() => CreateAppointmentDto)
   appointment!: CreateAppointmentDto;
+
+  @ApiProperty({ type: () => CreateOrderSubjectDto })
+  @IsDefined()
+  @ValidateNested()
+  @Type(() => CreateOrderSubjectDto)
+  subject!: CreateOrderSubjectDto;
 }

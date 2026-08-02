@@ -57,30 +57,54 @@ enum OrderStatus {
   PENDING_CONFIRMATION
   CONFIRMED
   COLLECTOR_ASSIGNED
+  COLLECTOR_ON_THE_WAY
+  COLLECTED
+  IN_TRANSIT
   CANCELLED
 }
 
 model Order {
-  id            String       @id @default(uuid())
-  orderCode     String       @unique
-  status        OrderStatus  @default(PENDING_CONFIRMATION)
-  contactName   String
-  contactPhone  String
-  subtotal      Decimal      @db.Decimal(12, 2)
-  collectionFee Decimal      @db.Decimal(12, 2)
-  totalAmount   Decimal      @db.Decimal(12, 2)
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
-  version       Int          @default(1)
-  currentCollectorProfileId String?
-  items         OrderItem[]
-  appointment   Appointment?
-  statusHistory OrderStatusHistory[]
-  currentCollector CollectorProfile? @relation("CurrentCollector", fields: [currentCollectorProfileId], references: [id], onDelete: Restrict)
+  id                         String                       @id @default(uuid())
+  orderCode                  String                       @unique
+  status                     OrderStatus                  @default(PENDING_CONFIRMATION)
+  contactName                String
+  contactPhone               String
+  subtotal                   Decimal                      @db.Decimal(12, 2)
+  collectionFee              Decimal                      @db.Decimal(12, 2)
+  totalAmount                Decimal                      @db.Decimal(12, 2)
+  createdAt                  DateTime                     @default(now())
+  updatedAt                  DateTime                     @updatedAt
+  version                    Int                          @default(1)
+  currentCollectorProfileId  String?
+  items                      OrderItem[]
+  appointment                Appointment?
+  statusHistory              OrderStatusHistory[]
+  currentCollector           CollectorProfile?            @relation("CurrentCollector", fields: [currentCollectorProfileId], references: [id], onDelete: Restrict)
   collectorAssignmentHistory CollectorAssignmentHistory[]
+  subject                    OrderSubject?
+  collectionAttempts         CollectionAttempt[]
 
   @@index([createdAt])
   @@index([currentCollectorProfileId])
+}
+
+enum SubjectSex {
+  MALE
+  FEMALE
+  OTHER
+  UNKNOWN
+}
+
+model OrderSubject {
+  id                    String     @id @default(uuid())
+  orderId               String     @unique
+  fullName              String
+  dateOfBirth           DateTime   @db.Date
+  sex                   SubjectSex
+  relationshipToContact String?
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
+  order                 Order      @relation(fields: [orderId], references: [id], onDelete: Cascade)
 }
 
 model OrderStatusHistory {
@@ -148,19 +172,19 @@ enum StaffStatus {
 }
 
 model StaffUser {
-  id                String         @id @default(uuid())
-  email             String         @unique
-  passwordHash      String
-  fullName          String
-  role              StaffRole
-  status            StaffStatus    @default(ACTIVE)
-  lastLoginAt       DateTime?
-  passwordChangedAt DateTime       @default(now())
-  createdAt         DateTime       @default(now())
-  updatedAt         DateTime       @updatedAt
-  sessions          StaffSession[]
-  auditLogs         AdminAuditLog[]
-  collectorProfile  CollectorProfile?
+  id                            String                       @id @default(uuid())
+  email                         String                       @unique
+  passwordHash                  String
+  fullName                      String
+  role                          StaffRole
+  status                        StaffStatus                  @default(ACTIVE)
+  lastLoginAt                   DateTime?
+  passwordChangedAt             DateTime                     @default(now())
+  createdAt                     DateTime                     @default(now())
+  updatedAt                     DateTime                     @updatedAt
+  sessions                      StaffSession[]
+  auditLogs                     AdminAuditLog[]
+  collectorProfile              CollectorProfile?
   performedCollectorAssignments CollectorAssignmentHistory[] @relation("AssignmentPerformer")
 
   @@index([status])
@@ -179,34 +203,77 @@ enum CollectorAssignmentAction {
 }
 
 model CollectorProfile {
-  id                String                     @id @default(uuid())
-  staffUserId       String                     @unique
-  employeeCode      String                     @unique
-  phone             String
-  phoneNormalized   String
-  operationalStatus CollectorOperationalStatus @default(OFF_DUTY)
-  createdAt         DateTime                   @default(now())
-  updatedAt         DateTime                   @updatedAt
-  staffUser         StaffUser                  @relation(fields: [staffUserId], references: [id], onDelete: Restrict)
-  serviceAreas      CollectorServiceArea[]
-  currentOrders     Order[]                    @relation("CurrentCollector")
-  assignments       CollectorAssignmentHistory[] @relation("AssignedCollector")
+  id                  String                       @id @default(uuid())
+  staffUserId         String                       @unique
+  employeeCode        String                       @unique
+  phone               String
+  phoneNormalized     String
+  operationalStatus   CollectorOperationalStatus   @default(OFF_DUTY)
+  createdAt           DateTime                     @default(now())
+  updatedAt           DateTime                     @updatedAt
+  staffUser           StaffUser                    @relation(fields: [staffUserId], references: [id], onDelete: Restrict)
+  serviceAreas        CollectorServiceArea[]
+  currentOrders       Order[]                      @relation("CurrentCollector")
+  assignments         CollectorAssignmentHistory[] @relation("AssignedCollector")
   previousAssignments CollectorAssignmentHistory[] @relation("PreviousCollector")
+  collectionAttempts  CollectionAttempt[]
 
   @@index([employeeCode])
   @@index([phoneNormalized])
   @@index([operationalStatus])
 }
 
+enum CollectionAttemptStatus {
+  ON_THE_WAY
+  COLLECTED
+  IN_TRANSIT
+  FAILED
+}
+
+enum CollectionFailureReason {
+  PATIENT_UNAVAILABLE
+  IDENTITY_MISMATCH
+  PATIENT_DECLINED
+  UNSAFE_ENVIRONMENT
+  COLLECTION_NOT_POSSIBLE
+  OTHER
+}
+
+model CollectionAttempt {
+  id                 String                   @id @default(uuid())
+  orderId            String
+  collectorProfileId String
+  attemptNumber      Int
+  status             CollectionAttemptStatus
+  startedAt          DateTime
+  collectedAt        DateTime?
+  inTransitAt        DateTime?
+  failedAt           DateTime?
+  failureReason      CollectionFailureReason?
+  failureNote        String?                  @db.Text
+  identityVerifiedAt DateTime?
+  consentConfirmedAt DateTime?
+  createdAt          DateTime                 @default(now())
+  updatedAt          DateTime                 @updatedAt
+  order              Order                    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  collectorProfile   CollectorProfile         @relation(fields: [collectorProfileId], references: [id], onDelete: Restrict)
+
+  @@unique([orderId, attemptNumber])
+  @@index([orderId])
+  @@index([collectorProfileId])
+  @@index([status])
+  @@index([startedAt])
+}
+
 model CollectorServiceArea {
-  id                  String           @id @default(uuid())
-  collectorProfileId  String
-  province            String
-  district            String?
-  provinceNormalized  String
-  districtNormalized  String?
-  createdAt           DateTime         @default(now())
-  collectorProfile    CollectorProfile @relation(fields: [collectorProfileId], references: [id], onDelete: Cascade)
+  id                 String           @id @default(uuid())
+  collectorProfileId String
+  province           String
+  district           String?
+  provinceNormalized String
+  districtNormalized String?
+  createdAt          DateTime         @default(now())
+  collectorProfile   CollectorProfile @relation(fields: [collectorProfileId], references: [id], onDelete: Cascade)
 
   @@index([collectorProfileId])
   @@index([provinceNormalized, districtNormalized])
@@ -222,8 +289,8 @@ model CollectorAssignmentHistory {
   reason                     String?                   @db.Text
   createdAt                  DateTime                  @default(now())
   order                      Order                     @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  collectorProfile           CollectorProfile?        @relation("AssignedCollector", fields: [collectorProfileId], references: [id], onDelete: Restrict)
-  previousCollectorProfile   CollectorProfile?        @relation("PreviousCollector", fields: [previousCollectorProfileId], references: [id], onDelete: Restrict)
+  collectorProfile           CollectorProfile?         @relation("AssignedCollector", fields: [collectorProfileId], references: [id], onDelete: Restrict)
+  previousCollectorProfile   CollectorProfile?         @relation("PreviousCollector", fields: [previousCollectorProfileId], references: [id], onDelete: Restrict)
   performedBy                StaffUser                 @relation("AssignmentPerformer", fields: [performedByStaffUserId], references: [id], onDelete: Restrict)
 
   @@index([orderId, createdAt])

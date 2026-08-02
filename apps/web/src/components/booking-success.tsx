@@ -4,6 +4,7 @@ import Link from "next/link";
 import { BookingSteps } from "@/components/booking-steps";
 import { useBookingResult } from "@/components/booking-result-provider";
 import { formatPrice } from "@/lib/lab-tests";
+import type { CompletedOrder } from "@/lib/booking";
 
 export function BookingSuccess() {
   const { completedOrder } = useBookingResult();
@@ -14,4 +15,4 @@ export function BookingSuccess() {
 }
 
 function formatDate(value: string): string { return new Intl.DateTimeFormat("vi-VN", { dateStyle: "long", timeZone: "Asia/Ho_Chi_Minh" }).format(new Date(value)); }
-function statusLabel(status: "PENDING_CONFIRMATION" | "CONFIRMED" | "CANCELLED"): string { if (status === "CONFIRMED") return "Đã xác nhận"; if (status === "CANCELLED") return "Đã hủy"; return "Chờ xác nhận"; }
+function statusLabel(status: CompletedOrder["status"]): string { if (status === "CONFIRMED") return "Đã xác nhận"; if (status === "COLLECTOR_ASSIGNED") return "Đã phân công"; if (status === "COLLECTOR_ON_THE_WAY") return "Đang di chuyển"; if (status === "COLLECTED") return "Đã lấy mẫu"; if (status === "IN_TRANSIT") return "Đang vận chuyển"; if (status === "CANCELLED") return "Đã hủy"; return "Chờ xác nhận"; }

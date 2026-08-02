@@ -43,6 +43,11 @@ describe('Orders API with PostgreSQL', () => {
         labTestIds: [labTestId],
         contactName: 'Synthetic Integration Customer',
         contactPhone: '0900000000',
+        subject: {
+          fullName: 'Synthetic Subject',
+          dateOfBirth: '1990-01-20',
+          sex: 'UNKNOWN',
+        },
         appointment: {
           scheduledDate: '2026-08-05T08:00:00+07:00',
           timeSlot: '08:00-10:00',
@@ -111,6 +116,11 @@ describe('Orders API with PostgreSQL', () => {
         labTestIds: [labTestId],
         contactName: 'Synthetic Rejected Customer',
         contactPhone: '0900000000',
+        subject: {
+          fullName: 'Synthetic Subject',
+          dateOfBirth: '1990-01-20',
+          sex: 'UNKNOWN',
+        },
         appointment: {
           scheduledDate: '2026-08-05T08:00:00+07:00',
           timeSlot: '08:00-10:00',
@@ -138,6 +148,11 @@ describe('Orders API with PostgreSQL', () => {
         labTestIds: [labTestId, '00000000-0000-4000-8000-000000000000'],
         contactName: 'Synthetic Rollback Customer',
         contactPhone: '0900000000',
+        subject: {
+          fullName: 'Synthetic Subject',
+          dateOfBirth: '1990-01-20',
+          sex: 'UNKNOWN',
+        },
         appointment: {
           scheduledDate: '2026-08-05T08:00:00+07:00',
           timeSlot: '08:00-10:00',
