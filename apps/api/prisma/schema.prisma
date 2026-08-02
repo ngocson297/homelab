@@ -1,0 +1,51 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum BookingStatus {
+  REQUESTED
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+model Booking {
+  id          String        @id @default(uuid())
+  scheduledAt DateTime
+  status      BookingStatus @default(REQUESTED)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([scheduledAt])
+}
+
+enum LabTestStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model LabTest {
+  id                     String        @id @default(uuid())
+  code                   String        @unique
+  name                   String
+  description            String?       @db.Text
+  specimenType           String
+  containerType          String
+  minimumVolumeMl        Decimal?      @db.Decimal(6, 2)
+  preparationInstruction String?       @db.Text
+  turnaroundTimeHours    Int
+  homeCollectable        Boolean       @default(false)
+  price                  Decimal       @db.Decimal(12, 2)
+  status                 LabTestStatus @default(ACTIVE)
+  createdAt              DateTime      @default(now())
+  updatedAt              DateTime      @updatedAt
+
+  @@index([name])
+  @@index([homeCollectable, status])
+}

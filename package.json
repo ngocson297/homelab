@@ -1,0 +1,18 @@
+{
+  "name": "homelab",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": ["apps/*"],
+  "scripts": {
+    "dev:web": "npm run dev --workspace web",
+    "dev:api": "npm run start:dev --workspace api",
+    "build": "npm run build --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "test": "npm run test --workspace api",
+    "test:e2e:web": "npm run test:e2e --workspace web",
+    "format": "npm run format --workspaces --if-present",
+    "prisma:generate": "npm run prisma:generate --workspace api",
+    "prisma:migrate": "npm run prisma:migrate --workspace api"
+  },
+  "engines": { "node": ">=22" }
+}
