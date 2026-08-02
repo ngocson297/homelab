@@ -16,6 +16,7 @@ export type CustodyTimelineEvent = {
   actorType: "SYSTEM" | "ADMIN" | "COLLECTOR" | "LAB_STAFF";
   actorEmployeeCode: string | null;
   occurredAt: string;
+  metadata: Record<string, unknown> | null;
 };
 
 export type OrderSpecimen = {

@@ -40,6 +40,10 @@ ALTER TABLE "OrderItem" ALTER COLUMN "containerTypeSnapshot" SET NOT NULL;
 -- Order-level laboratory intake flags
 ALTER TABLE "Order" ADD COLUMN "requiresRecollection" BOOLEAN NOT NULL DEFAULT false;
 
+-- Order workflow idempotency key. NULL keeps existing history entries valid.
+ALTER TABLE "OrderStatusHistory" ADD COLUMN "operationId" UUID;
+CREATE UNIQUE INDEX "OrderStatusHistory_orderId_operationId_key" ON "OrderStatusHistory"("orderId", "operationId");
+
 -- CreateTable
 CREATE TABLE "Specimen" (
     "id" TEXT NOT NULL,

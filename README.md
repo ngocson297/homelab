@@ -13,6 +13,19 @@ npm run admin:create --workspace api
 
 Script không in password, không ghi password vào source và không tự thay đổi account đã tồn tại.
 
+## Tạo Lab Staff local
+
+Lab Staff bootstrap chỉ dùng cho local/bootstrap để đăng nhập Lab Portal. Không dùng mật khẩu đang dùng ở dịch vụ khác, không commit secret vào `.env` hoặc Git.
+
+```powershell
+$env:BOOTSTRAP_LAB_STAFF_EMAIL="lab01@homelab.local"
+$env:BOOTSTRAP_LAB_STAFF_PASSWORD="<local-password>"
+$env:BOOTSTRAP_LAB_STAFF_NAME="HomeLab Lab Staff"
+npm run lab-staff:create
+```
+
+Script tạo `ACTIVE` staff account với role `LAB_STAFF`. Script không in password, không ghi password hash ra console và từ chối ghi đè account đã tồn tại.
+
 Monorepo nền tảng đặt lịch lấy mẫu xét nghiệm tại nhà. Giai đoạn hiện tại chỉ gồm nền móng kỹ thuật và Test Catalog; không xử lý dữ liệu bệnh nhân thật, chatbot AI hoặc thanh toán thật.
 
 ## Yêu cầu môi trường
@@ -81,6 +94,7 @@ npm run test:integration:db --workspace api
 - `docker-compose.yml`: PostgreSQL local
 
 Không đưa dữ liệu bệnh nhân, y tế, liên hệ hoặc thanh toán thật vào source code, seed, fixture, test hay log.
+
 ### Create a local collector
 
 Set `BOOTSTRAP_COLLECTOR_EMAIL`, `BOOTSTRAP_COLLECTOR_PASSWORD`, `BOOTSTRAP_COLLECTOR_NAME`, `BOOTSTRAP_COLLECTOR_EMPLOYEE_CODE`, and `BOOTSTRAP_COLLECTOR_PHONE` in the uncommitted `.env`, then run:

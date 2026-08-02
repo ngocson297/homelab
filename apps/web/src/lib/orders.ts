@@ -16,7 +16,7 @@ export type CreateOrderInput = {
 
 export type OrderResponse = {
   orderCode: string;
-  status: "PENDING_CONFIRMATION" | "CONFIRMED" | "COLLECTOR_ASSIGNED" | "COLLECTOR_ON_THE_WAY" | "COLLECTED" | "IN_TRANSIT" | "CANCELLED";
+  status: "PENDING_CONFIRMATION" | "CONFIRMED" | "COLLECTOR_ASSIGNED" | "COLLECTOR_ON_THE_WAY" | "COLLECTED" | "IN_TRANSIT" | "RECEIVED_AT_LAB" | "CANCELLED";
   items: Array<{
     labTestId: string;
     testCode: string;
@@ -184,7 +184,7 @@ function isOrderItem(value: unknown): value is OrderResponse["items"][number] {
 }
 
 function isOrderStatus(value: unknown): value is OrderResponse["status"] {
-  return ["PENDING_CONFIRMATION", "CONFIRMED", "COLLECTOR_ASSIGNED", "COLLECTOR_ON_THE_WAY", "COLLECTED", "IN_TRANSIT", "CANCELLED"].includes(String(value));
+  return ["PENDING_CONFIRMATION", "CONFIRMED", "COLLECTOR_ASSIGNED", "COLLECTOR_ON_THE_WAY", "COLLECTED", "IN_TRANSIT", "RECEIVED_AT_LAB", "CANCELLED"].includes(String(value));
 }
 
 function isAppointmentStatus(

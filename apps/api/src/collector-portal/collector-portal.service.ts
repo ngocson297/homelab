@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
@@ -11,14 +12,17 @@ import {
   CollectorOperationalStatus,
   OrderStatus,
   Prisma,
+  CustodyActorType,
+  SpecimenCustodyEventType,
+  SpecimenStatus,
   StaffRole,
   StaffStatus,
 } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   CollectorOrdersQueryDto,
+  CollectSpecimensDto,
   ExpectedVersionDto,
-  MarkCollectedDto,
   ReportCollectionFailureDto,
 } from './dto/collector-portal.dto';
 
@@ -32,6 +36,15 @@ const detailInclude = {
   },
   statusHistory: { orderBy: { occurredAt: 'asc' as const } },
   collectionAttempts: { orderBy: { attemptNumber: 'desc' as const } },
+  specimens: {
+    include: {
+      orderItems: {
+        include: { orderItem: true },
+        orderBy: { createdAt: 'asc' as const },
+      },
+    },
+    orderBy: { createdAt: 'asc' as const },
+  },
 } satisfies Prisma.OrderInclude;
 type DetailOrder = Prisma.OrderGetPayload<{ include: typeof detailInclude }>;
 
@@ -162,6 +175,16 @@ export class CollectorPortalService {
           );
         if (order.collectionAttempts.some((x) => !terminal(x.status)))
           throw new ConflictException('Đơn đã có lần lấy mẫu đang hoạt động');
+        const activeSpecimens = order.specimens.filter(
+          (item) => item.status !== SpecimenStatus.CANCELLED,
+        );
+        if (
+          !activeSpecimens.length ||
+          activeSpecimens.some((item) => item.status !== SpecimenStatus.LABELED)
+        )
+          throw new ConflictException(
+            'Admin hoặc phòng xét nghiệm cần chuẩn bị đầy đủ nhãn bệnh phẩm',
+          );
         const next = (order.collectionAttempts[0]?.attemptNumber ?? 0) + 1;
         await this.updateOrder(
           tx,
@@ -187,12 +210,19 @@ export class CollectorPortalService {
           'Nhân viên lấy mẫu đang trên đường đến địa điểm đã hẹn.',
           'COLLECTION_JOURNEY_STARTED',
           { employeeCode: profile.employeeCode },
+          dto.operationId,
         );
       },
+      dto.operationId,
+      OrderStatus.COLLECTOR_ON_THE_WAY,
     );
   }
 
-  markCollected(staffUserId: string, code: string, dto: MarkCollectedDto) {
+  collectSpecimens(
+    staffUserId: string,
+    code: string,
+    dto: CollectSpecimensDto,
+  ) {
     return this.mutate(
       staffUserId,
       code,
@@ -217,7 +247,67 @@ export class CollectorPortalService {
         );
         if (!attempt)
           throw new ConflictException('Không có lần lấy mẫu đang hoạt động');
+        const active = order.specimens.filter(
+          (item) => item.status !== SpecimenStatus.CANCELLED,
+        );
+        if (!active.length)
+          throw new ConflictException('Đơn chưa có kế hoạch bệnh phẩm');
+        const scanned = dto.specimens.map((item) => item.barcodeValue.trim());
+        if (new Set(scanned).size !== scanned.length)
+          throw new BadRequestException(
+            'Barcode không được trùng trong yêu cầu',
+          );
+        if (scanned.length !== active.length)
+          throw new BadRequestException(
+            'Phải quét đủ tất cả bệnh phẩm của đơn hàng',
+          );
+        const byBarcode = new Map(
+          active.map((item) => [item.barcodeValue, item]),
+        );
+        if (scanned.some((barcode) => !byBarcode.has(barcode)))
+          throw new BadRequestException(
+            'Một hoặc nhiều barcode không hợp lệ cho đơn hàng này',
+          );
+        if (active.some((item) => item.status !== SpecimenStatus.LABELED))
+          throw new ConflictException('Bệnh phẩm đã được ghi nhận trước đó');
         const now = new Date();
+        for (const input of dto.specimens) {
+          const specimen = byBarcode.get(input.barcodeValue.trim());
+          if (!specimen) throw new BadRequestException('Barcode không hợp lệ');
+          const updated = await tx.specimen.updateMany({
+            where: {
+              id: specimen.id,
+              version: specimen.version,
+              status: SpecimenStatus.LABELED,
+            },
+            data: {
+              status: SpecimenStatus.COLLECTED,
+              collectedAt: now,
+              collectedByCollectorProfileId: profile.id,
+              collectedVolumeMl:
+                input.collectedVolumeMl === undefined
+                  ? null
+                  : new Prisma.Decimal(String(input.collectedVolumeMl)),
+              version: { increment: 1 },
+            },
+          });
+          if (updated.count !== 1) throw new ConflictException(STALE);
+          await tx.specimenCustodyEvent.create({
+            data: {
+              specimenId: specimen.id,
+              eventType: SpecimenCustodyEventType.SPECIMEN_COLLECTED,
+              actorType: CustodyActorType.COLLECTOR,
+              actorStaffUserId: staffUserId,
+              actorCollectorProfileId: profile.id,
+              operationId: dto.operationId,
+              metadata: {
+                fromStatus: SpecimenStatus.LABELED,
+                toStatus: SpecimenStatus.COLLECTED,
+                employeeCode: profile.employeeCode,
+              },
+            },
+          });
+        }
         await this.updateOrder(
           tx,
           order,
@@ -244,9 +334,13 @@ export class CollectorPortalService {
           {
             employeeCode: profile.employeeCode,
             attemptNumber: attempt.attemptNumber,
+            specimenCount: active.length,
           },
+          dto.operationId,
         );
       },
+      dto.operationId,
+      OrderStatus.COLLECTED,
     );
   }
 
@@ -262,6 +356,47 @@ export class CollectorPortalService {
           (x) => x.status === CollectionAttemptStatus.COLLECTED,
         );
         if (!attempt) throw new ConflictException('Không có mẫu đã lấy');
+        const active = order.specimens.filter(
+          (item) => item.status !== SpecimenStatus.CANCELLED,
+        );
+        if (
+          !active.length ||
+          active.some((item) => item.status !== SpecimenStatus.COLLECTED)
+        )
+          throw new ConflictException(
+            'Tất cả bệnh phẩm phải ở trạng thái COLLECTED',
+          );
+        const now = new Date();
+        for (const specimen of active) {
+          const updated = await tx.specimen.updateMany({
+            where: {
+              id: specimen.id,
+              version: specimen.version,
+              status: SpecimenStatus.COLLECTED,
+            },
+            data: {
+              status: SpecimenStatus.IN_TRANSIT,
+              inTransitAt: now,
+              version: { increment: 1 },
+            },
+          });
+          if (updated.count !== 1) throw new ConflictException(STALE);
+          await tx.specimenCustodyEvent.create({
+            data: {
+              specimenId: specimen.id,
+              eventType: SpecimenCustodyEventType.HANDED_TO_TRANSPORT,
+              actorType: CustodyActorType.COLLECTOR,
+              actorStaffUserId: staffUserId,
+              actorCollectorProfileId: profile.id,
+              operationId: dto.operationId,
+              metadata: {
+                fromStatus: SpecimenStatus.COLLECTED,
+                toStatus: SpecimenStatus.IN_TRANSIT,
+                employeeCode: profile.employeeCode,
+              },
+            },
+          });
+        }
         await this.updateOrder(
           tx,
           order,
@@ -272,7 +407,7 @@ export class CollectorPortalService {
           where: { id: attempt.id },
           data: {
             status: CollectionAttemptStatus.IN_TRANSIT,
-            inTransitAt: new Date(),
+            inTransitAt: now,
           },
         });
         await this.event(
@@ -286,9 +421,13 @@ export class CollectorPortalService {
           {
             employeeCode: profile.employeeCode,
             attemptNumber: attempt.attemptNumber,
+            specimenCount: active.length,
           },
+          dto.operationId,
         );
       },
+      dto.operationId,
+      OrderStatus.IN_TRANSIT,
     );
   }
 
@@ -315,7 +454,12 @@ export class CollectorPortalService {
             'Trạng thái không cho phép báo cáo thất bại',
           );
         const now = new Date(),
-          note = sanitize(dto.note);
+          note = sanitize(dto.note, [
+            order.contactName,
+            order.contactPhone,
+            order.subject?.fullName,
+            order.appointment?.addressLine,
+          ]);
         let attempt = order.collectionAttempts.find(
           (x) => x.status === CollectionAttemptStatus.ON_THE_WAY,
         );
@@ -374,8 +518,11 @@ export class CollectorPortalService {
             failureReason: dto.reason,
             note,
           },
+          dto.operationId,
         );
       },
+      dto.operationId,
+      OrderStatus.CONFIRMED,
     );
   }
 
@@ -388,18 +535,52 @@ export class CollectorPortalService {
       profile: Awaited<ReturnType<CollectorPortalService['profile']>>,
       order: DetailOrder,
     ) => Promise<void>,
+    operationId: string,
+    idempotentStatus: OrderStatus,
   ) {
-    return this.prisma.transaction(
-      async (tx) => {
-        const profile = await this.profile(tx, staffId);
-        const order = await this.ownedOrder(tx, profile.id, code);
-        if (order.version !== version) throw new ConflictException(STALE);
-        await operation(tx, profile, order);
-        const updated = await this.ownedOrder(tx, profile.id, code, true);
-        return this.response(updated);
-      },
-      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
-    );
+    try {
+      return await this.prisma.transaction(
+        async (tx) => {
+          const profile = await this.profile(tx, staffId);
+          const order = await tx.order.findUnique({
+            where: { orderCode: code.trim().toUpperCase() },
+            include: detailInclude,
+          });
+          if (!order) throw new NotFoundException('Không tìm thấy nhiệm vụ');
+          const previous = order.statusHistory.find(
+            (item) => item.operationId === operationId,
+          );
+          const ownsCurrent = order.currentCollectorProfileId === profile.id;
+          const ownsRetry =
+            order.currentCollectorProfileId === null &&
+            !!previous &&
+            order.collectionAttempts.some(
+              (attempt) => attempt.collectorProfileId === profile.id,
+            );
+          if (!ownsCurrent && !ownsRetry)
+            throw new NotFoundException('Không tìm thấy nhiệm vụ');
+          if (previous) {
+            if (previous.status !== idempotentStatus)
+              throw new ConflictException(
+                'operationId đã được sử dụng cho thao tác khác',
+              );
+            return this.response(order);
+          }
+          if (order.version !== version) throw new ConflictException(STALE);
+          await operation(tx, profile, order);
+          const updated = await this.ownedOrder(tx, profile.id, code, true);
+          return this.response(updated);
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      );
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        (error.code === 'P2034' || error.code === 'P2002')
+      )
+        throw new ConflictException(STALE);
+      throw error;
+    }
   }
   private async profile(
     client: Prisma.TransactionClient | PrismaService,
@@ -469,9 +650,10 @@ export class CollectorPortalService {
     description: string,
     action: string,
     metadata: Prisma.InputJsonValue,
+    operationId?: string,
   ) {
     await tx.orderStatusHistory.create({
-      data: { orderId: order.id, status, title, description },
+      data: { orderId: order.id, status, title, description, operationId },
     });
     await tx.adminAuditLog.create({
       data: {
@@ -514,8 +696,25 @@ export class CollectorPortalService {
         testCode: x.testCodeSnapshot,
         testName: x.testNameSnapshot,
         specimenType: x.specimenTypeSnapshot,
-        preparationInstruction: x.labTest.preparationInstruction,
+        preparationInstruction: x.preparationInstructionSnapshot,
       })),
+      specimens: order.specimens
+        .filter((item) => item.status !== SpecimenStatus.CANCELLED)
+        .map((item) => ({
+          specimenCode: item.specimenCode,
+          status: item.status,
+          specimenType: item.specimenType,
+          containerType: item.containerType,
+          targetVolumeMl: item.targetVolumeMl?.toString() ?? null,
+          collectedVolumeMl: item.collectedVolumeMl?.toString() ?? null,
+          requiresManualReview: item.requiresManualReview,
+          collectedAt: item.collectedAt,
+          inTransitAt: item.inTransitAt,
+          linkedTests: item.orderItems.map(({ orderItem }) => ({
+            testCode: orderItem.testCodeSnapshot,
+            testName: orderItem.testNameSnapshot,
+          })),
+        })),
       currentAttempt: attempt
         ? {
             attemptNumber: attempt.attemptNumber,
@@ -555,8 +754,11 @@ function localDayRange(date: Date): Prisma.DateTimeFilter {
 function maskPhone(value: string) {
   return `${'*'.repeat(Math.max(0, value.length - 4))}${value.slice(-4)}`;
 }
-function sanitize(value?: string) {
-  return (
+function sanitize(
+  value?: string,
+  sensitiveValues: (string | null | undefined)[] = [],
+) {
+  let sanitized =
     value
       ?.replace(/<[^>]*>/g, '')
       .replace(/(?:\+84|0)(?:[ .()-]*\d){9,10}/g, '[REDACTED_PHONE]')
@@ -565,8 +767,19 @@ function sanitize(value?: string) {
         '[REDACTED_AUTH]',
       )
       .trim()
-      .slice(0, 500) || null
-  );
+      .slice(0, 500) || null;
+  if (!sanitized) return null;
+  for (const sensitive of sensitiveValues) {
+    if (!sensitive?.trim()) continue;
+    sanitized = sanitized.replace(
+      new RegExp(escapeRegExp(sensitive.trim()), 'gi'),
+      '[REDACTED_CONTACT]',
+    );
+  }
+  return sanitized;
+}
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 function label(status: OrderStatus) {
   const labels: Record<OrderStatus, string> = {
@@ -576,6 +789,7 @@ function label(status: OrderStatus) {
     COLLECTOR_ON_THE_WAY: 'Đang di chuyển',
     COLLECTED: 'Đã lấy mẫu',
     IN_TRANSIT: 'Đang vận chuyển',
+    RECEIVED_AT_LAB: 'Đã tiếp nhận tại phòng xét nghiệm',
     CANCELLED: 'Đã hủy',
   };
   return labels[status];

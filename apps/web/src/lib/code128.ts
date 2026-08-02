@@ -15,7 +15,7 @@ export function code128BSvgDataUrl(value: string): string {
   const values = Array.from(value, (character) => character.charCodeAt(0) - 32);
   const checksum = (104 + values.reduce((sum, item, index) => sum + item * (index + 1), 0)) % 103;
   const symbols = [104, ...values, checksum, 106];
-  const quiet = 10, moduleWidth = 2, height = 64;
+  const moduleWidth = 2, quiet = moduleWidth * 10, height = 64;
   let x = quiet, bars = '';
   for (const symbol of symbols) {
     const pattern = PATTERNS[symbol];

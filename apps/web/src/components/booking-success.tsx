@@ -15,4 +15,4 @@ export function BookingSuccess() {
 }
 
 function formatDate(value: string): string { return new Intl.DateTimeFormat("vi-VN", { dateStyle: "long", timeZone: "Asia/Ho_Chi_Minh" }).format(new Date(value)); }
-function statusLabel(status: CompletedOrder["status"]): string { if (status === "CONFIRMED") return "Đã xác nhận"; if (status === "COLLECTOR_ASSIGNED") return "Đã phân công"; if (status === "COLLECTOR_ON_THE_WAY") return "Đang di chuyển"; if (status === "COLLECTED") return "Đã lấy mẫu"; if (status === "IN_TRANSIT") return "Đang vận chuyển"; if (status === "CANCELLED") return "Đã hủy"; return "Chờ xác nhận"; }
+function statusLabel(status: CompletedOrder["status"]): string { if (status === "CONFIRMED") return "Đã xác nhận"; if (status === "COLLECTOR_ASSIGNED") return "Đã phân công"; if (status === "COLLECTOR_ON_THE_WAY") return "Đang di chuyển"; if (status === "COLLECTED") return "Đã lấy mẫu"; if (status === "IN_TRANSIT") return "Đang vận chuyển"; if (status === "RECEIVED_AT_LAB") return "Đã tiếp nhận tại phòng xét nghiệm"; if (status === "CANCELLED") return "Đã hủy"; return "Chờ xác nhận"; }

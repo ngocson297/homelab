@@ -8,6 +8,8 @@ import {
   AppointmentStatus,
   OrderStatus,
   Prisma,
+  SpecimenCustodyEventType,
+  SpecimenStatus,
 } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import {
@@ -29,6 +31,21 @@ const detailInclude = {
     include: { collectorProfile: true },
     orderBy: { attemptNumber: 'desc' as const },
   },
+  specimens: {
+    include: {
+      orderItems: { include: { orderItem: true } },
+      custodyEvents: {
+        include: {
+          actorCollectorProfile: { select: { employeeCode: true } },
+        },
+        orderBy: [
+          { occurredAt: 'asc' as const },
+          { createdAt: 'asc' as const },
+        ],
+      },
+    },
+    orderBy: { createdAt: 'asc' as const },
+  },
 } satisfies Prisma.OrderInclude;
 type DetailedOrder = Prisma.OrderGetPayload<{ include: typeof detailInclude }>;
 
@@ -47,7 +64,14 @@ export class AdminOrdersService {
       Promise.all([
         tx.order.findMany({
           where,
-          include: { appointment: true, _count: { select: { items: true } } },
+          include: {
+            appointment: true,
+            _count: { select: { items: true, specimens: true } },
+            specimens: {
+              where: { status: SpecimenStatus.REJECTED },
+              select: { specimenCode: true },
+            },
+          },
           orderBy,
           skip: (query.page - 1) * query.limit,
           take: query.limit,
@@ -72,6 +96,9 @@ export class AdminOrdersService {
             }
           : null,
         itemCount: order._count.items,
+        specimenCount: order._count.specimens,
+        rejectedSpecimenCount: order.specimens.length,
+        requiresRecollection: order.requiresRecollection,
         totalAmount: order.totalAmount.toString(),
         version: order.version,
         createdAt: order.createdAt,
@@ -409,6 +436,42 @@ export class AdminOrdersService {
         failedAt: attempt.failedAt,
         failureReason: attempt.failureReason,
       })),
+      requiresRecollection: order.requiresRecollection,
+      specimens: order.specimens
+        .filter((specimen) => specimen.status !== SpecimenStatus.CANCELLED)
+        .map((specimen) => ({
+          specimenCode: specimen.specimenCode,
+          status: specimen.status,
+          specimenType: specimen.specimenType,
+          containerType: specimen.containerType,
+          collectionGroupKey: specimen.collectionGroupKey,
+          targetVolumeMl: specimen.targetVolumeMl?.toString() ?? null,
+          collectedVolumeMl: specimen.collectedVolumeMl?.toString() ?? null,
+          requiresManualReview: specimen.requiresManualReview,
+          recollectionRequired: specimen.recollectionRequired,
+          collectedAt: specimen.collectedAt,
+          inTransitAt: specimen.inTransitAt,
+          receivedAt: specimen.receivedAt,
+          acceptedAt: specimen.acceptedAt,
+          rejectedAt: specimen.rejectedAt,
+          rejectionReason: specimen.rejectionReason,
+          rejectionNote: specimen.rejectionNote,
+          linkedTests: specimen.orderItems.map(({ orderItem }) => ({
+            testCode: orderItem.testCodeSnapshot,
+            testName: orderItem.testNameSnapshot,
+          })),
+          custodyTimeline: [...specimen.custodyEvents]
+            .sort(custodyOrder)
+            .map((event) => ({
+              eventType: event.eventType,
+              title: custodyTitle(event.eventType),
+              actorType: event.actorType,
+              actorEmployeeCode:
+                event.actorCollectorProfile?.employeeCode ?? null,
+              occurredAt: event.occurredAt,
+              metadata: safeCustodyMetadata(event.metadata),
+            })),
+        })),
       requiresCollectionAttention:
         order.collectionAttempts[0]?.status === 'FAILED',
       createdAt: order.createdAt,
@@ -480,9 +543,61 @@ function statusLabel(status: OrderStatus) {
   if (status === OrderStatus.COLLECTOR_ON_THE_WAY) return 'Đang di chuyển';
   if (status === OrderStatus.COLLECTED) return 'Đã lấy mẫu';
   if (status === OrderStatus.IN_TRANSIT) return 'Mẫu đang vận chuyển';
+  if (status === OrderStatus.RECEIVED_AT_LAB)
+    return 'Đã tiếp nhận tại phòng xét nghiệm';
   return status === OrderStatus.CONFIRMED
     ? 'Đã xác nhận'
     : status === OrderStatus.CANCELLED
       ? 'Đã hủy'
       : 'Chờ xác nhận';
+}
+
+function custodyOrder(
+  left: DetailedOrder['specimens'][number]['custodyEvents'][number],
+  right: DetailedOrder['specimens'][number]['custodyEvents'][number],
+) {
+  const byTime = left.occurredAt.getTime() - right.occurredAt.getTime();
+  return byTime || custodyRank(left.eventType) - custodyRank(right.eventType);
+}
+
+function custodyRank(type: SpecimenCustodyEventType) {
+  return [
+    SpecimenCustodyEventType.SPECIMEN_PLANNED,
+    SpecimenCustodyEventType.LABEL_GENERATED,
+    SpecimenCustodyEventType.LABEL_PRINTED,
+    SpecimenCustodyEventType.SPECIMEN_COLLECTED,
+    SpecimenCustodyEventType.HANDED_TO_TRANSPORT,
+    SpecimenCustodyEventType.RECEIVED_AT_LAB,
+    SpecimenCustodyEventType.SPECIMEN_ACCEPTED,
+    SpecimenCustodyEventType.SPECIMEN_REJECTED,
+  ].indexOf(type);
+}
+
+function custodyTitle(type: SpecimenCustodyEventType) {
+  const titles = {
+    SPECIMEN_PLANNED: 'Đã lập kế hoạch bệnh phẩm',
+    LABEL_GENERATED: 'Đã tạo nhãn barcode',
+    LABEL_PRINTED: 'Đã ghi nhận in nhãn',
+    SPECIMEN_COLLECTED: 'Đã lấy bệnh phẩm',
+    HANDED_TO_TRANSPORT: 'Đã bàn giao vận chuyển',
+    RECEIVED_AT_LAB: 'Đã tiếp nhận tại phòng xét nghiệm',
+    SPECIMEN_ACCEPTED: 'Bệnh phẩm được chấp nhận',
+    SPECIMEN_REJECTED: 'Bệnh phẩm bị từ chối',
+  } satisfies Record<SpecimenCustodyEventType, string>;
+  return titles[type];
+}
+
+function safeCustodyMetadata(value: Prisma.JsonValue): Prisma.JsonValue {
+  if (!value || Array.isArray(value) || typeof value !== 'object') return null;
+  const allowed = new Set([
+    'fromStatus',
+    'toStatus',
+    'reason',
+    'recollectionRequired',
+    'printCount',
+    'symbology',
+  ]);
+  return Object.fromEntries(
+    Object.entries(value).filter(([key]) => allowed.has(key)),
+  );
 }

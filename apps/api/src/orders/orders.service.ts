@@ -133,8 +133,7 @@ export class OrdersService {
               collectionGroupKeySnapshot: normalizeCollectionGroupKey(
                 test.collectionGroupKey,
               ),
-              targetCollectionVolumeMlSnapshot:
-                test.targetCollectionVolumeMl,
+              targetCollectionVolumeMlSnapshot: test.targetCollectionVolumeMl,
               preparationInstructionSnapshot:
                 test.specimenPreparationInstruction?.trim() || null,
               transportInstructionSnapshot:
@@ -303,6 +302,8 @@ function statusLabel(status: OrderStatus): string {
   if (status === OrderStatus.COLLECTOR_ON_THE_WAY) return 'Đang di chuyển';
   if (status === OrderStatus.COLLECTED) return 'Đã lấy mẫu';
   if (status === OrderStatus.IN_TRANSIT) return 'Mẫu đang vận chuyển';
+  if (status === OrderStatus.RECEIVED_AT_LAB)
+    return 'Đã tiếp nhận tại phòng xét nghiệm';
   if (status === OrderStatus.CANCELLED) return 'Đã hủy';
   return 'Chờ xác nhận';
 }

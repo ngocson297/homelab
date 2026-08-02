@@ -83,6 +83,24 @@ describe('StaffAuthService', () => {
     expect(JSON.stringify(result.response)).not.toContain('passwordHash');
   });
 
+  it('allows active lab staff to create a staff session', async () => {
+    staffUser.findUnique.mockResolvedValueOnce({
+      ...user,
+      email: 'lab01@homelab.local',
+      fullName: 'Synthetic Lab Staff',
+      role: StaffRole.LAB_STAFF,
+    });
+    const result = await service.login({
+      email: 'lab01@homelab.local',
+      password: 'Synthetic1234',
+    });
+    expect(result.response.user).toEqual({
+      email: 'lab01@homelab.local',
+      fullName: 'Synthetic Lab Staff',
+      role: StaffRole.LAB_STAFF,
+    });
+  });
+
   it.each([
     ['wrong password', user, 'WrongPassword1'],
     ['unknown email', null, 'Synthetic1234'],

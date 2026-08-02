@@ -37,6 +37,10 @@ export class PrismaService implements OnModuleDestroy {
     return this.getClient().collectorProfile;
   }
 
+  get specimen(): PrismaClient['specimen'] {
+    return this.getClient().specimen;
+  }
+
   transaction<T>(
     operation: (transaction: Prisma.TransactionClient) => Promise<T>,
     options?: { isolationLevel?: Prisma.TransactionIsolationLevel },

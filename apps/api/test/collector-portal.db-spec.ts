@@ -5,7 +5,9 @@ import { CollectorPortalService } from '../src/collector-portal/collector-portal
 import {
   CollectionFailureReason,
   CollectorOperationalStatus,
+  LabTestStatus,
   OrderStatus,
+  SpecimenStatus,
   StaffRole,
   StaffStatus,
 } from '../src/generated/prisma/client';
@@ -19,16 +21,38 @@ describe('Collector portal workflow (PostgreSQL)', () => {
     orderIds: string[] = [];
   let firstStaff = '',
     secondStaff = '',
-    firstProfile = '';
+    firstProfile = '',
+    labTestId = '';
   beforeAll(async () => {
     module = await Test.createTestingModule({ imports: [AppModule] }).compile();
     prisma = module.get(PrismaService);
     service = module.get(CollectorPortalService);
     ({ staffId: firstStaff, profileId: firstProfile } = await collector('A'));
     ({ staffId: secondStaff } = await collector('B'));
+    const labTest = await prisma.labTest.create({
+      data: {
+        code: `T11-${randomUUID().slice(0, 8).toUpperCase()}`,
+        name: 'Synthetic collector workflow test',
+        specimenType: 'Synthetic blood',
+        containerType: 'Synthetic tube',
+        targetCollectionVolumeMl: '3.00',
+        turnaroundTimeHours: 24,
+        homeCollectable: true,
+        price: '100000',
+        status: LabTestStatus.ACTIVE,
+      },
+    });
+    labTestId = labTest.id;
   });
   afterAll(async () => {
     await prisma.transaction(async (tx) => {
+      await tx.specimenCustodyEvent.deleteMany({
+        where: { specimen: { orderId: { in: orderIds } } },
+      });
+      await tx.specimenOrderItem.deleteMany({
+        where: { specimen: { orderId: { in: orderIds } } },
+      });
+      await tx.specimen.deleteMany({ where: { orderId: { in: orderIds } } });
       await tx.order.deleteMany({ where: { id: { in: orderIds } } });
       await tx.adminAuditLog.deleteMany({
         where: { staffUserId: { in: staffIds } },
@@ -37,6 +61,7 @@ describe('Collector portal workflow (PostgreSQL)', () => {
         where: { staffUserId: { in: staffIds } },
       });
       await tx.staffUser.deleteMany({ where: { id: { in: staffIds } } });
+      await tx.labTest.delete({ where: { id: labTestId } });
     });
     await module.close();
   });
@@ -96,10 +121,38 @@ describe('Collector portal workflow (PostgreSQL)', () => {
             title: 'Synthetic assigned',
           },
         },
+        items: {
+          create: {
+            labTestId,
+            testCodeSnapshot: 'T11-SYNTHETIC',
+            testNameSnapshot: 'Synthetic collector workflow test',
+            specimenTypeSnapshot: 'Synthetic blood',
+            containerTypeSnapshot: 'Synthetic tube',
+            collectionGroupKeySnapshot: null,
+            targetCollectionVolumeMlSnapshot: '3.00',
+            preparationInstructionSnapshot: null,
+            transportInstructionSnapshot: null,
+            priceSnapshot: '100000',
+          },
+        },
+      },
+      include: { items: true },
+    });
+    const barcodeValue = `t11_${randomUUID().replaceAll('-', '')}`;
+    await prisma.specimen.create({
+      data: {
+        specimenCode: `SPC-T11-${randomUUID().slice(0, 12).toUpperCase()}`,
+        barcodeValue,
+        orderId: value.id,
+        status: SpecimenStatus.LABELED,
+        specimenType: 'Synthetic blood',
+        containerType: 'Synthetic tube',
+        targetVolumeMl: '3.00',
+        orderItems: { create: { orderItemId: value.items[0].id } },
       },
     });
     orderIds.push(value.id);
-    return value;
+    return { ...value, barcodeValue };
   }
   it('scopes list/detail to the authenticated collector and minimizes list data', async () => {
     const own = await order();
@@ -126,6 +179,7 @@ describe('Collector portal workflow (PostgreSQL)', () => {
     const created = await order();
     const started = await service.startJourney(firstStaff, created.orderCode, {
       expectedVersion: 1,
+      operationId: randomUUID(),
     });
     expect(started).toMatchObject({
       status: 'COLLECTOR_ON_THE_WAY',
@@ -133,25 +187,31 @@ describe('Collector portal workflow (PostgreSQL)', () => {
       currentAttempt: { attemptNumber: 1, status: 'ON_THE_WAY' },
     });
     await expect(
-      service.markCollected(firstStaff, created.orderCode, {
+      service.collectSpecimens(firstStaff, created.orderCode, {
         expectedVersion: 2,
+        operationId: randomUUID(),
         identityConfirmation: {
           fullNameConfirmed: true,
           dateOfBirthConfirmed: false,
         },
         consentConfirmed: true,
+        specimens: [{ barcodeValue: created.barcodeValue }],
       }),
     ).rejects.toMatchObject({ status: 409 });
-    const collected = await service.markCollected(
+    const collected = await service.collectSpecimens(
       firstStaff,
       created.orderCode,
       {
         expectedVersion: 2,
+        operationId: randomUUID(),
         identityConfirmation: {
           fullNameConfirmed: true,
           dateOfBirthConfirmed: true,
         },
         consentConfirmed: true,
+        specimens: [
+          { barcodeValue: created.barcodeValue, collectedVolumeMl: 3 },
+        ],
       },
     );
     expect(collected).toMatchObject({
@@ -161,6 +221,7 @@ describe('Collector portal workflow (PostgreSQL)', () => {
     });
     const transit = await service.markInTransit(firstStaff, created.orderCode, {
       expectedVersion: 3,
+      operationId: randomUUID(),
     });
     expect(transit).toMatchObject({
       status: 'IN_TRANSIT',
@@ -170,6 +231,7 @@ describe('Collector portal workflow (PostgreSQL)', () => {
     await expect(
       service.markInTransit(firstStaff, created.orderCode, {
         expectedVersion: 4,
+        operationId: randomUUID(),
       }),
     ).rejects.toMatchObject({ status: 409 });
   });
@@ -177,6 +239,7 @@ describe('Collector portal workflow (PostgreSQL)', () => {
     const created = await order();
     const failed = await service.reportFailure(firstStaff, created.orderCode, {
       expectedVersion: 1,
+      operationId: randomUUID(),
       reason: CollectionFailureReason.PATIENT_UNAVAILABLE,
     });
     expect(failed).toMatchObject({
@@ -196,6 +259,7 @@ describe('Collector portal workflow (PostgreSQL)', () => {
     expect(() =>
       service.reportFailure(firstStaff, created.orderCode, {
         expectedVersion: 2,
+        operationId: randomUUID(),
         reason: CollectionFailureReason.OTHER,
         note: '',
       }),

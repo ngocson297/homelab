@@ -16,7 +16,8 @@
     "prisma:generate": "npm run prisma:generate --workspace api",
     "prisma:migrate": "npm run prisma:migrate --workspace api",
     "admin:create": "npm run admin:create --workspace api",
-    "collector:create": "npm run collector:create --workspace api"
+    "collector:create": "npm run collector:create --workspace api",
+    "lab-staff:create": "npm run lab-staff:create --workspace api"
   },
   "engines": {
     "node": ">=22"

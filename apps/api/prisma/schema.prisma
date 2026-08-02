@@ -122,9 +122,11 @@ model OrderStatusHistory {
   title       String
   description String?     @db.Text
   occurredAt  DateTime    @default(now())
+  operationId String?     @db.Uuid
   createdAt   DateTime    @default(now())
   order       Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
+  @@unique([orderId, operationId])
   @@index([orderId, occurredAt])
 }
 

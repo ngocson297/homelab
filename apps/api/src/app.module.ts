@@ -8,6 +8,7 @@ import { StaffAuthModule } from './staff-auth/staff-auth.module';
 import { AdminOrdersModule } from './admin-orders/admin-orders.module';
 import { CollectorsModule } from './collectors/collectors.module';
 import { CollectorPortalModule } from './collector-portal/collector-portal.module';
+import { SpecimensModule } from './specimens/specimens.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { CollectorPortalModule } from './collector-portal/collector-portal.modul
     AdminOrdersModule,
     CollectorsModule,
     CollectorPortalModule,
+    SpecimensModule,
   ],
   controllers: [AppController],
 })

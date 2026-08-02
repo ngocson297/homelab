@@ -19,8 +19,8 @@ import type { AuthenticatedStaff } from '../staff-auth/staff-request';
 import { CollectorPortalService } from './collector-portal.service';
 import {
   CollectorOrdersQueryDto,
+  CollectSpecimensDto,
   ExpectedVersionDto,
-  MarkCollectedDto,
   ReportCollectionFailureDto,
 } from './dto/collector-portal.dto';
 
@@ -67,15 +67,15 @@ export class CollectorPortalController {
   ) {
     return this.service.startJourney(staff.id, code, dto);
   }
-  @Patch('orders/:orderCode/mark-collected')
+  @Patch('orders/:orderCode/collect-specimens')
   @UseGuards(StaffCsrfGuard)
   @Header('Cache-Control', 'private, no-store, max-age=0')
-  collected(
+  collectSpecimens(
     @CurrentStaff() staff: AuthenticatedStaff,
     @Param('orderCode') code: string,
-    @Body() dto: MarkCollectedDto,
+    @Body() dto: CollectSpecimensDto,
   ) {
-    return this.service.markCollected(staff.id, code, dto);
+    return this.service.collectSpecimens(staff.id, code, dto);
   }
   @Patch('orders/:orderCode/mark-in-transit')
   @UseGuards(StaffCsrfGuard)

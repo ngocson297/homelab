@@ -26,12 +26,7 @@ export class StaffAuthService {
     const passwordValid = user
       ? await argon2.verify(user.passwordHash, dto.password).catch(() => false)
       : await this.consumeMissingUserHash(dto.password);
-    if (
-      !user ||
-      !passwordValid ||
-      user.status !== StaffStatus.ACTIVE ||
-      user.role !== StaffRole.ADMIN
-    ) {
+    if (!user || !passwordValid || user.status !== StaffStatus.ACTIVE) {
       throw new UnauthorizedException(GENERIC_LOGIN_ERROR);
     }
 

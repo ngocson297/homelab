@@ -17,3 +17,13 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+@media print {
+  @page { margin: 8mm; }
+  body { background: white; }
+  body > * { visibility: hidden; }
+  [role="dialog"], [role="dialog"] * { visibility: visible; }
+  [role="dialog"] { position: absolute; inset: 0; width: 100%; }
+  .no-print { display: none !important; }
+  .specimen-label { width: 72mm; min-height: 25mm; margin: 2mm; page-break-inside: avoid; }
+}

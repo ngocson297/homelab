@@ -16,16 +16,16 @@ export type LabSpecimenDetail = {
   receivedAt: string | null;
   acceptedAt: string | null;
   rejectedAt: string | null;
-  rejectionReason: string | null;
-  rejectionNote: string | null;
-  recollectionRequired: boolean;
+  rejectionReason?: string | null;
+  rejectionNote?: string | null;
+  recollectionRequired?: boolean;
   custodyTimeline?: CustodyTimelineEvent[];
 };
 
 export type LabSpecimenListItem = Pick<
   LabSpecimenDetail,
-  "specimenCode" | "status" | "specimenType" | "containerType" | "orderCode" | "receivedAt" | "rejectedAt"
->;
+  "specimenCode" | "status" | "version" | "specimenType" | "containerType" | "orderCode" | "receivedAt" | "rejectedAt"
+> & { requiresManualReview: boolean; recollectionRequired: boolean };
 
 export type LabSpecimenList = {
   data: LabSpecimenListItem[];
