@@ -70,6 +70,7 @@ model Order {
   totalAmount   Decimal      @db.Decimal(12, 2)
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
+  version       Int          @default(1)
   items         OrderItem[]
   appointment   Appointment?
   statusHistory OrderStatusHistory[]
@@ -153,8 +154,23 @@ model StaffUser {
   createdAt         DateTime       @default(now())
   updatedAt         DateTime       @updatedAt
   sessions          StaffSession[]
+  auditLogs         AdminAuditLog[]
 
   @@index([status])
+}
+
+model AdminAuditLog {
+  id              String    @id @default(uuid())
+  staffUserId     String
+  action          String
+  entityType      String
+  entityReference String
+  metadata        Json?
+  createdAt       DateTime  @default(now())
+  staffUser       StaffUser @relation(fields: [staffUserId], references: [id], onDelete: Restrict)
+
+  @@index([staffUserId, createdAt])
+  @@index([entityType, entityReference, createdAt])
 }
 
 model StaffSession {

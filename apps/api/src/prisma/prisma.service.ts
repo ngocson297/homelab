@@ -29,6 +29,10 @@ export class PrismaService implements OnModuleDestroy {
     return this.getClient().staffSession;
   }
 
+  get adminAuditLog(): PrismaClient['adminAuditLog'] {
+    return this.getClient().adminAuditLog;
+  }
+
   transaction<T>(
     operation: (transaction: Prisma.TransactionClient) => Promise<T>,
   ): Promise<T> {

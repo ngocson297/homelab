@@ -11,6 +11,6 @@ import { StaffCsrfGuard } from './staff-csrf.guard';
   imports: [ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }])],
   controllers: [StaffAuthController, AdminController],
   providers: [StaffAuthService, StaffAuthGuard, RolesGuard, StaffCsrfGuard],
-  exports: [StaffAuthService, StaffAuthGuard, RolesGuard],
+  exports: [StaffAuthService, StaffAuthGuard, RolesGuard, StaffCsrfGuard],
 })
 export class StaffAuthModule {}

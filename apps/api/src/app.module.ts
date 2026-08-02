@@ -5,6 +5,7 @@ import { LabTestsModule } from './lab-tests/lab-tests.module';
 import { OrdersModule } from './orders/orders.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { StaffAuthModule } from './staff-auth/staff-auth.module';
+import { AdminOrdersModule } from './admin-orders/admin-orders.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { StaffAuthModule } from './staff-auth/staff-auth.module';
     LabTestsModule,
     OrdersModule,
     StaffAuthModule,
+    AdminOrdersModule,
   ],
   controllers: [AppController],
 })
