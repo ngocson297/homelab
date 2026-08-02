@@ -260,6 +260,7 @@ function maskPhone(value: string): string {
 
 function statusLabel(status: OrderStatus): string {
   if (status === OrderStatus.CONFIRMED) return 'Đã xác nhận';
+  if (status === OrderStatus.COLLECTOR_ASSIGNED) return 'Đã phân công lấy mẫu';
   if (status === OrderStatus.CANCELLED) return 'Đã hủy';
   return 'Chờ xác nhận';
 }

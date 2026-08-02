@@ -7,5 +7,6 @@ import { AdminOrdersService } from './admin-orders.service';
   imports: [StaffAuthModule],
   controllers: [AdminOrdersController],
   providers: [AdminOrdersService],
+  exports: [AdminOrdersService],
 })
 export class AdminOrdersModule {}

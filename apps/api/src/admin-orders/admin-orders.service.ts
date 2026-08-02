@@ -23,6 +23,7 @@ const detailInclude = {
   items: { orderBy: { createdAt: 'asc' as const } },
   appointment: true,
   statusHistory: { orderBy: { occurredAt: 'asc' as const } },
+  currentCollector: { include: { staffUser: true } },
 } satisfies Prisma.OrderInclude;
 type DetailedOrder = Prisma.OrderGetPayload<{ include: typeof detailInclude }>;
 
@@ -136,8 +137,13 @@ export class AdminOrdersService {
       dto.expectedVersion,
       staffUserId,
       async (tx, order) => {
-        if (order.status === OrderStatus.CANCELLED)
-          throw new ConflictException('Đơn hàng đã được hủy');
+        if (
+          order.status !== OrderStatus.PENDING_CONFIRMATION &&
+          order.status !== OrderStatus.CONFIRMED
+        )
+          throw new ConflictException(
+            'Trạng thái đơn hàng không cho phép hủy trực tiếp',
+          );
         await this.atomicUpdate(tx, order, dto.expectedVersion, {
           status: OrderStatus.CANCELLED,
         });
@@ -188,6 +194,22 @@ export class AdminOrdersService {
           order.appointment.timeSlot === dto.timeSlot
         )
           throw new ConflictException('Lịch mới phải khác lịch hiện tại');
+        if (order.currentCollectorProfileId) {
+          const range = localDayRange(scheduledDate);
+          const conflict = await tx.order.findFirst({
+            where: {
+              id: { not: order.id },
+              currentCollectorProfileId: order.currentCollectorProfileId,
+              status: { not: OrderStatus.CANCELLED },
+              appointment: { scheduledDate: range, timeSlot: dto.timeSlot },
+            },
+            select: { id: true },
+          });
+          if (conflict)
+            throw new ConflictException(
+              'Nhân viên lấy mẫu đã có lịch trong khung giờ mới',
+            );
+        }
         await this.atomicUpdate(tx, order, dto.expectedVersion, {});
         await tx.appointment.update({
           where: { orderId: order.id },
@@ -356,6 +378,14 @@ export class AdminOrdersService {
         description: entry.description,
         occurredAt: entry.occurredAt,
       })),
+      currentCollector: order.currentCollector
+        ? {
+            employeeCode: order.currentCollector.employeeCode,
+            fullName: order.currentCollector.staffUser.fullName,
+            maskedPhone: maskPhone(order.currentCollector.phone),
+            operationalStatus: order.currentCollector.operationalStatus,
+          }
+        : null,
       createdAt: order.createdAt,
       updatedAt: order.updatedAt,
     };
@@ -372,6 +402,16 @@ function dateRange(
         lte: to ? new Date(to) : undefined,
       }
     : undefined;
+}
+function localDayRange(date: Date): Prisma.DateTimeFilter {
+  const day = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Bangkok',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(date);
+  const start = new Date(`${day}T00:00:00+07:00`);
+  return { gte: start, lt: new Date(start.getTime() + 86_400_000) };
 }
 function normalizeCode(value: string) {
   return value.trim().toUpperCase();
@@ -411,6 +451,7 @@ function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 function statusLabel(status: OrderStatus) {
+  if (status === OrderStatus.COLLECTOR_ASSIGNED) return 'Đã phân công lấy mẫu';
   return status === OrderStatus.CONFIRMED
     ? 'Đã xác nhận'
     : status === OrderStatus.CANCELLED

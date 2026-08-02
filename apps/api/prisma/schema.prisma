@@ -56,6 +56,7 @@ model LabTest {
 enum OrderStatus {
   PENDING_CONFIRMATION
   CONFIRMED
+  COLLECTOR_ASSIGNED
   CANCELLED
 }
 
@@ -71,11 +72,15 @@ model Order {
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
   version       Int          @default(1)
+  currentCollectorProfileId String?
   items         OrderItem[]
   appointment   Appointment?
   statusHistory OrderStatusHistory[]
+  currentCollector CollectorProfile? @relation("CurrentCollector", fields: [currentCollectorProfileId], references: [id], onDelete: Restrict)
+  collectorAssignmentHistory CollectorAssignmentHistory[]
 
   @@index([createdAt])
+  @@index([currentCollectorProfileId])
 }
 
 model OrderStatusHistory {
@@ -155,8 +160,76 @@ model StaffUser {
   updatedAt         DateTime       @updatedAt
   sessions          StaffSession[]
   auditLogs         AdminAuditLog[]
+  collectorProfile  CollectorProfile?
+  performedCollectorAssignments CollectorAssignmentHistory[] @relation("AssignmentPerformer")
 
   @@index([status])
+}
+
+enum CollectorOperationalStatus {
+  AVAILABLE
+  OFF_DUTY
+  INACTIVE
+}
+
+enum CollectorAssignmentAction {
+  ASSIGNED
+  REASSIGNED
+  UNASSIGNED
+}
+
+model CollectorProfile {
+  id                String                     @id @default(uuid())
+  staffUserId       String                     @unique
+  employeeCode      String                     @unique
+  phone             String
+  phoneNormalized   String
+  operationalStatus CollectorOperationalStatus @default(OFF_DUTY)
+  createdAt         DateTime                   @default(now())
+  updatedAt         DateTime                   @updatedAt
+  staffUser         StaffUser                  @relation(fields: [staffUserId], references: [id], onDelete: Restrict)
+  serviceAreas      CollectorServiceArea[]
+  currentOrders     Order[]                    @relation("CurrentCollector")
+  assignments       CollectorAssignmentHistory[] @relation("AssignedCollector")
+  previousAssignments CollectorAssignmentHistory[] @relation("PreviousCollector")
+
+  @@index([employeeCode])
+  @@index([phoneNormalized])
+  @@index([operationalStatus])
+}
+
+model CollectorServiceArea {
+  id                  String           @id @default(uuid())
+  collectorProfileId  String
+  province            String
+  district            String?
+  provinceNormalized  String
+  districtNormalized  String?
+  createdAt           DateTime         @default(now())
+  collectorProfile    CollectorProfile @relation(fields: [collectorProfileId], references: [id], onDelete: Cascade)
+
+  @@index([collectorProfileId])
+  @@index([provinceNormalized, districtNormalized])
+}
+
+model CollectorAssignmentHistory {
+  id                         String                    @id @default(uuid())
+  orderId                    String
+  collectorProfileId         String?
+  previousCollectorProfileId String?
+  action                     CollectorAssignmentAction
+  performedByStaffUserId     String
+  reason                     String?                   @db.Text
+  createdAt                  DateTime                  @default(now())
+  order                      Order                     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  collectorProfile           CollectorProfile?        @relation("AssignedCollector", fields: [collectorProfileId], references: [id], onDelete: Restrict)
+  previousCollectorProfile   CollectorProfile?        @relation("PreviousCollector", fields: [previousCollectorProfileId], references: [id], onDelete: Restrict)
+  performedBy                StaffUser                 @relation("AssignmentPerformer", fields: [performedByStaffUserId], references: [id], onDelete: Restrict)
+
+  @@index([orderId, createdAt])
+  @@index([collectorProfileId, createdAt])
+  @@index([previousCollectorProfileId, createdAt])
+  @@index([performedByStaffUserId, createdAt])
 }
 
 model AdminAuditLog {

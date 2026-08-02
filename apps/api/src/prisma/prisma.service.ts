@@ -33,10 +33,15 @@ export class PrismaService implements OnModuleDestroy {
     return this.getClient().adminAuditLog;
   }
 
+  get collectorProfile(): PrismaClient['collectorProfile'] {
+    return this.getClient().collectorProfile;
+  }
+
   transaction<T>(
     operation: (transaction: Prisma.TransactionClient) => Promise<T>,
+    options?: { isolationLevel?: Prisma.TransactionIsolationLevel },
   ): Promise<T> {
-    return this.getClient().$transaction(operation);
+    return this.getClient().$transaction(operation, options);
   }
 
   private getClient(): PrismaClient {

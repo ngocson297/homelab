@@ -81,3 +81,12 @@ npm run test:integration:db --workspace api
 - `docker-compose.yml`: PostgreSQL local
 
 Không đưa dữ liệu bệnh nhân, y tế, liên hệ hoặc thanh toán thật vào source code, seed, fixture, test hay log.
+### Create a local collector
+
+Set `BOOTSTRAP_COLLECTOR_EMAIL`, `BOOTSTRAP_COLLECTOR_PASSWORD`, `BOOTSTRAP_COLLECTOR_NAME`, `BOOTSTRAP_COLLECTOR_EMPLOYEE_CODE`, and `BOOTSTRAP_COLLECTOR_PHONE` in the uncommitted `.env`, then run:
+
+```powershell
+npm run collector:create
+```
+
+The command creates an `ACTIVE` staff account with role `COLLECTOR` and an `OFF_DUTY` profile atomically. It refuses to overwrite an existing email or employee code.
