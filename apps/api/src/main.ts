@@ -1,13 +1,15 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { ExpressAdapter } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, new ExpressAdapter());
 
   app.enableCors({
     origin: process.env.CORS_ORIGIN ?? 'http://localhost:3000',
+    credentials: true,
   });
   app.useGlobalPipes(
     new ValidationPipe({
@@ -27,6 +29,10 @@ async function bootstrap() {
         'API for the HomeLab at-home specimen collection platform',
       )
       .setVersion('0.1.0')
+      .addCookieAuth('homelab_staff_session', {
+        type: 'apiKey',
+        in: 'cookie',
+      })
       .build();
     SwaggerModule.setup('docs', app, () =>
       SwaggerModule.createDocument(app, config),

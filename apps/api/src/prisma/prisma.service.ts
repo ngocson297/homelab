@@ -21,6 +21,14 @@ export class PrismaService implements OnModuleDestroy {
     return this.getClient().order;
   }
 
+  get staffUser(): PrismaClient['staffUser'] {
+    return this.getClient().staffUser;
+  }
+
+  get staffSession(): PrismaClient['staffSession'] {
+    return this.getClient().staffSession;
+  }
+
   transaction<T>(
     operation: (transaction: Prisma.TransactionClient) => Promise<T>,
   ): Promise<T> {

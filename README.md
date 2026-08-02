@@ -1,5 +1,18 @@
 # HomeLab
 
+## Tạo Admin local
+
+Admin không được tạo tự động hoặc qua seed. Trên PowerShell, đặt biến môi trường chỉ cho terminal hiện tại:
+
+```powershell
+$env:BOOTSTRAP_ADMIN_EMAIL="admin@homelab.local"
+$env:BOOTSTRAP_ADMIN_PASSWORD="<set-a-strong-local-password-with-a-number>"
+$env:BOOTSTRAP_ADMIN_NAME="HomeLab Admin"
+npm run admin:create --workspace api
+```
+
+Script không in password, không ghi password vào source và không tự thay đổi account đã tồn tại.
+
 Monorepo nền tảng đặt lịch lấy mẫu xét nghiệm tại nhà. Giai đoạn hiện tại chỉ gồm nền móng kỹ thuật và Test Catalog; không xử lý dữ liệu bệnh nhân thật, chatbot AI hoặc thanh toán thật.
 
 ## Yêu cầu môi trường

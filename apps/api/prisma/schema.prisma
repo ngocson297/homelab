@@ -129,3 +129,44 @@ model Appointment {
 
   @@index([scheduledDate, status])
 }
+
+enum StaffRole {
+  ADMIN
+  LAB_STAFF
+  COLLECTOR
+}
+
+enum StaffStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model StaffUser {
+  id                String         @id @default(uuid())
+  email             String         @unique
+  passwordHash      String
+  fullName          String
+  role              StaffRole
+  status            StaffStatus    @default(ACTIVE)
+  lastLoginAt       DateTime?
+  passwordChangedAt DateTime       @default(now())
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  sessions          StaffSession[]
+
+  @@index([status])
+}
+
+model StaffSession {
+  id          String    @id @default(uuid())
+  staffUserId String
+  tokenHash   String    @unique
+  expiresAt   DateTime
+  revokedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  lastUsedAt  DateTime?
+  staffUser   StaffUser @relation(fields: [staffUserId], references: [id], onDelete: Cascade)
+
+  @@index([staffUserId])
+  @@index([expiresAt])
+}

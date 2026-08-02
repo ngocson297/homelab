@@ -22,7 +22,8 @@
     "test:integration:db": "prisma migrate deploy && prisma db seed && node --experimental-vm-modules node_modules/jest/bin/jest.js --config ./test/jest-db.json --runInBand",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:seed": "prisma db seed"
+    "prisma:seed": "prisma db seed",
+    "admin:create": "tsx scripts/create-admin.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
@@ -30,8 +31,10 @@
     "@nestjs/core": "^11.0.1",
     "@nestjs/platform-express": "^11.0.1",
     "@nestjs/swagger": "^11.4.6",
+    "@nestjs/throttler": "^6.5.0",
     "@prisma/adapter-pg": "^7.9.1",
     "@prisma/client": "^7.9.1",
+    "argon2": "^0.45.1",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
     "dotenv": "^17.4.1",

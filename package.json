@@ -2,7 +2,9 @@
   "name": "homelab",
   "version": "0.1.0",
   "private": true,
-  "workspaces": ["apps/*"],
+  "workspaces": [
+    "apps/*"
+  ],
   "scripts": {
     "dev:web": "npm run dev --workspace web",
     "dev:api": "npm run start:dev --workspace api",
@@ -12,7 +14,10 @@
     "test:e2e:web": "npm run test:e2e --workspace web",
     "format": "npm run format --workspaces --if-present",
     "prisma:generate": "npm run prisma:generate --workspace api",
-    "prisma:migrate": "npm run prisma:migrate --workspace api"
+    "prisma:migrate": "npm run prisma:migrate --workspace api",
+    "admin:create": "npm run admin:create --workspace api"
   },
-  "engines": { "node": ">=22" }
+  "engines": {
+    "node": ">=22"
+  }
 }
