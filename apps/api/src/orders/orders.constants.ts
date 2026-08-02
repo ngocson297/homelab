@@ -1,0 +1,1 @@
+export const ORDER_COLLECTION_FEE = '30000.00';

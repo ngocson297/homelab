@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaPg } from '@prisma/adapter-pg';
-import { PrismaClient } from '../generated/prisma/client';
+import { Prisma, PrismaClient } from '../generated/prisma/client';
 
 @Injectable()
 export class PrismaService implements OnModuleDestroy {
@@ -15,6 +15,16 @@ export class PrismaService implements OnModuleDestroy {
 
   get labTest(): PrismaClient['labTest'] {
     return this.getClient().labTest;
+  }
+
+  get order(): PrismaClient['order'] {
+    return this.getClient().order;
+  }
+
+  transaction<T>(
+    operation: (transaction: Prisma.TransactionClient) => Promise<T>,
+  ): Promise<T> {
+    return this.getClient().$transaction(operation);
   }
 
   private getClient(): PrismaClient {

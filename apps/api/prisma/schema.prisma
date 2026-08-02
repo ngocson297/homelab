@@ -45,7 +45,73 @@ model LabTest {
   status                 LabTestStatus @default(ACTIVE)
   createdAt              DateTime      @default(now())
   updatedAt              DateTime      @updatedAt
+  orderItems             OrderItem[]
 
   @@index([name])
   @@index([homeCollectable, status])
+  @@index([code(ops: raw("gin_trgm_ops"))], type: Gin, map: "LabTest_code_trgm_idx")
+  @@index([name(ops: raw("gin_trgm_ops"))], type: Gin, map: "LabTest_name_trgm_idx")
+}
+
+enum OrderStatus {
+  DRAFT
+  CONFIRMED
+  CANCELLED
+}
+
+model Order {
+  id            String       @id @default(uuid())
+  orderCode     String       @unique
+  status        OrderStatus  @default(DRAFT)
+  contactName   String
+  contactPhone  String
+  subtotal      Decimal      @db.Decimal(12, 2)
+  collectionFee Decimal      @db.Decimal(12, 2)
+  totalAmount   Decimal      @db.Decimal(12, 2)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  items         OrderItem[]
+  appointment   Appointment?
+
+  @@index([createdAt])
+}
+
+model OrderItem {
+  id                   String   @id @default(uuid())
+  orderId              String
+  labTestId            String
+  testCodeSnapshot     String
+  testNameSnapshot     String
+  specimenTypeSnapshot String
+  priceSnapshot        Decimal  @db.Decimal(12, 2)
+  createdAt            DateTime @default(now())
+  order                Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  labTest              LabTest  @relation(fields: [labTestId], references: [id], onDelete: Restrict)
+
+  @@unique([orderId, labTestId])
+  @@index([labTestId])
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  RESCHEDULED
+  CANCELLED
+}
+
+model Appointment {
+  id            String            @id @default(uuid())
+  orderId       String            @unique
+  scheduledDate DateTime
+  timeSlot      String
+  province      String
+  district      String
+  ward          String
+  addressLine   String
+  note          String?           @db.Text
+  status        AppointmentStatus @default(SCHEDULED)
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  order         Order             @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([scheduledDate, status])
 }
