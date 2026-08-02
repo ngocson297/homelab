@@ -1,2 +1,23 @@
-import Link from 'next/link';import { AdminLogoutButton } from './admin-logout-button';
-export function CollectorShell({name,children}:{name:string;children:React.ReactNode}){return <main className="min-h-screen bg-slate-100"><header className="border-b bg-white"><div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-4"><div><strong>HomeLab Collector</strong><p className="text-sm">{name}</p></div><nav aria-label="Cổng nhân viên lấy mẫu" className="flex flex-wrap items-center gap-3"><Link href="/collector">Nhiệm vụ hôm nay</Link><Link href="/collector/orders">Tất cả nhiệm vụ</Link><Link href="/collector">Tài khoản</Link><AdminLogoutButton redirectTo="/collector/login"/></nav></div></header><div className="mx-auto max-w-6xl px-4 py-7">{children}</div></main>}
+import { PortalShell } from "@/components/portal-shell";
+
+export function CollectorShell({
+  name,
+  children,
+}: {
+  name: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <PortalShell
+      product="HomeLab Collector"
+      name={name}
+      logoutTo="/collector/login"
+      links={[
+        { label: "Nhiệm vụ hôm nay", href: "/collector" },
+        { label: "Tất cả nhiệm vụ", href: "/collector/orders" },
+      ]}
+    >
+      {children}
+    </PortalShell>
+  );
+}

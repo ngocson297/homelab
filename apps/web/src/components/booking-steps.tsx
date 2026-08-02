@@ -2,8 +2,8 @@ const steps = ["Chọn xét nghiệm", "Thông tin lấy mẫu", "Xác nhận"];
 
 export function BookingSteps({ current }: { current: 1 | 2 | 3 }) {
   return (
-    <nav aria-label="Tiến trình đặt lịch">
-      <ol className="grid grid-cols-3 gap-2">
+    <nav aria-label="Tiến trình đặt lịch" className="medical-panel p-3">
+      <ol className="grid gap-2 sm:grid-cols-3">
         {steps.map((step, index) => {
           const number = index + 1;
           const active = number === current;
@@ -12,18 +12,32 @@ export function BookingSteps({ current }: { current: 1 | 2 | 3 }) {
             <li
               key={step}
               aria-current={active ? "step" : undefined}
-              className={`rounded-xl border px-3 py-3 text-center text-xs font-semibold sm:text-sm ${
+              className={`flex items-center gap-3 rounded-xl px-3 py-3 text-sm ${
                 active
-                  ? "border-teal-700 bg-teal-50 text-teal-900"
+                  ? "bg-[var(--primary-50)] text-[var(--primary-900)]"
                   : completed
-                    ? "border-slate-300 bg-white text-slate-800"
-                    : "border-slate-200 bg-slate-50 text-slate-500"
+                    ? "bg-emerald-50 text-emerald-900"
+                    : "bg-[var(--surface-muted)] text-[var(--text-secondary)]"
               }`}
             >
-              <span className="block text-[0.7rem] uppercase tracking-wide">
-                Bước {number}
+              <span
+                className={`grid size-8 shrink-0 place-items-center rounded-full text-xs font-bold ${
+                  active
+                    ? "bg-[var(--primary-800)] text-white"
+                    : completed
+                      ? "bg-emerald-700 text-white"
+                      : "bg-white text-[var(--text-muted)]"
+                }`}
+                aria-hidden="true"
+              >
+                {completed ? "✓" : number}
               </span>
-              <span className="mt-1 block">{step}</span>
+              <span>
+                <span className="block text-xs font-bold uppercase tracking-[0.12em]">
+                  Bước {number}
+                </span>
+                <span className="mt-0.5 block font-semibold">{step}</span>
+              </span>
             </li>
           );
         })}

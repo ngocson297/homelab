@@ -29,7 +29,13 @@ export default function RootLayout({
       lang="vi"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">
+      <body className="flex min-h-full flex-col">
+        <a
+          href="#main-content"
+          className="sr-only z-50 rounded-lg bg-white px-4 py-3 font-semibold text-[var(--primary-900)] shadow focus:not-sr-only focus:fixed focus:left-4 focus:top-4"
+        >
+          Bỏ qua phần điều hướng
+        </a>
         <CartProvider>
           <BookingResultProvider>{children}</BookingResultProvider>
         </CartProvider>

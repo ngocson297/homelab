@@ -2,9 +2,20 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { SiteHeader } from "@/components/site-header";
 import { BookingSteps } from "@/components/booking-steps";
 import { useCart } from "@/components/cart-provider";
+import { PublicFooter } from "@/components/public-footer";
+import { SiteHeader } from "@/components/site-header";
+import {
+  Alert,
+  Button,
+  ButtonLink,
+  Card,
+  EmptyState,
+  LoadingState,
+  PageHeader,
+  StatusBadge,
+} from "@/components/ui";
 import { calculateCartTotal, labTestToCartItem } from "@/lib/cart-state";
 import { fetchLabTestForCart } from "@/lib/client-lab-tests";
 import { formatPrice } from "@/lib/lab-tests";
@@ -20,9 +31,7 @@ export default function CartPage() {
     Promise.all(
       items.map(async (item) => {
         const test = await fetchLabTestForCart(item.id);
-        return test
-          ? labTestToCartItem(test)
-          : { ...item, available: false };
+        return test ? labTestToCartItem(test) : { ...item, available: false };
       }),
     )
       .then((freshItems) => {
@@ -34,7 +43,9 @@ export default function CartPage() {
       .finally(() => {
         if (!cancelled) setChecking(false);
       });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
     // Revalidate once after localStorage hydration; reconcile itself updates items.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hydrated]);
@@ -43,48 +54,146 @@ export default function CartPage() {
   const total = calculateCartTotal(items);
 
   return (
-    <div className="min-h-screen bg-[#f4f8f7] text-slate-900">
+    <div className="min-h-screen bg-[var(--background)] text-[var(--text-primary)]">
       <SiteHeader />
-      <main className="mx-auto w-full max-w-5xl px-5 py-8 sm:px-8 sm:py-12">
+      <main id="main-content" className="app-container py-8 sm:py-12">
         <BookingSteps current={1} />
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div><p className="text-sm font-semibold uppercase tracking-[0.16em] text-teal-800">Lab Test Cart</p><h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">Giỏ xét nghiệm</h1></div>
-          {hydrated && items.length > 0 && <button type="button" onClick={clear} aria-label="Xóa toàn bộ giỏ xét nghiệm" className="min-h-11 rounded-lg border border-slate-300 px-4 text-sm font-semibold hover:border-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-800">Xóa toàn bộ</button>}
+        <div className="mt-8">
+          <PageHeader
+            eyebrow="Giỏ xét nghiệm"
+            title="Kiểm tra danh sách trước khi đặt lịch"
+            description="Giá cuối cùng được hệ thống xác nhận khi tạo đơn. Bạn có thể xóa xét nghiệm hoặc quay lại danh mục để chọn thêm."
+            action={
+              hydrated && items.length > 0 ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={clear}
+                  aria-label="Xóa toàn bộ giỏ xét nghiệm"
+                >
+                  Xóa toàn bộ
+                </Button>
+              ) : null
+            }
+          />
         </div>
 
         {!hydrated ? (
-          <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-8" role="status">Đang tải giỏ xét nghiệm…</div>
+          <div className="mt-8">
+            <LoadingState label="Đang tải giỏ xét nghiệm" />
+          </div>
         ) : items.length === 0 ? (
-          <section className="mt-8 rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-14 text-center">
-            <h2 className="text-xl font-bold">Giỏ xét nghiệm đang trống</h2>
-            <p className="mt-2 text-sm text-slate-600">Chọn xét nghiệm từ danh mục để chuẩn bị đặt lịch.</p>
-            <Link href="/xet-nghiem" className="mt-6 inline-flex min-h-12 items-center rounded-xl bg-slate-900 px-5 font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2">Quay lại danh mục</Link>
-          </section>
+          <div className="mt-8">
+            <EmptyState
+              title="Giỏ xét nghiệm đang trống"
+              description="Chọn xét nghiệm từ danh mục để chuẩn bị đặt lịch lấy mẫu tại nhà."
+              action={<ButtonLink href="/xet-nghiem">Quay lại danh mục</ButtonLink>}
+            />
+          </div>
         ) : (
-          <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_19rem]">
+          <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_20rem]">
             <section className="space-y-4" aria-label="Các xét nghiệm trong giỏ">
-              {checking && <p className="text-sm text-slate-600" role="status">Đang kiểm tra tình trạng và giá mới nhất…</p>}
-              {checkError && <p className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-slate-800" role="alert">Chưa thể kiểm tra lại dữ liệu từ hệ thống. Vui lòng thử lại sau.</p>}
+              {checking && (
+                <Alert role="status">
+                  Đang kiểm tra tình trạng và giá mới nhất trong danh mục.
+                </Alert>
+              )}
+              {checkError && (
+                <Alert tone="warning" role="alert">
+                  Chưa thể kiểm tra lại dữ liệu từ hệ thống. Vui lòng thử lại
+                  sau trước khi đặt lịch.
+                </Alert>
+              )}
               {items.map((item) => (
-                <article key={item.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <Card key={item.id} as="article" className="p-5">
                   <div className="flex flex-wrap items-start justify-between gap-4">
-                    <div><span className="font-mono text-xs font-bold text-slate-600">{item.code}</span><h2 className="mt-1 text-lg font-bold">{item.name}</h2>{!item.available && <p className="mt-2 inline-flex rounded-md border border-amber-300 bg-amber-50 px-2 py-1 text-sm font-semibold text-slate-800">Không còn được cung cấp</p>}</div>
-                    <button type="button" onClick={() => remove(item.id)} aria-label={`Xóa ${item.name} khỏi giỏ`} className="min-h-11 rounded-lg border border-slate-300 px-3 text-sm font-semibold hover:border-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-800">Xóa</button>
+                    <div>
+                      <span className="font-mono text-xs font-bold text-[var(--text-muted)]">
+                        {item.code}
+                      </span>
+                      <h2 className="mt-1 text-lg font-bold leading-7 text-[var(--text-primary)]">
+                        {item.name}
+                      </h2>
+                      {!item.available && (
+                        <div className="mt-2">
+                          <StatusBadge tone="warning">
+                            Không còn được cung cấp
+                          </StatusBadge>
+                        </div>
+                      )}
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => remove(item.id)}
+                      aria-label={`Xóa ${item.name} khỏi giỏ`}
+                    >
+                      Xóa
+                    </Button>
                   </div>
-                  <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-3"><div><dt className="text-slate-500">Loại bệnh phẩm</dt><dd className="mt-1 font-medium">{item.specimenType}</dd></div><div><dt className="text-slate-500">Trả kết quả</dt><dd className="mt-1 font-medium">Khoảng {item.turnaroundTimeHours} giờ</dd></div><div><dt className="text-slate-500">Giá tham khảo</dt><dd className="mt-1 font-bold">{formatPrice(item.price)}</dd></div></dl>
-                </article>
+                  <dl className="mt-5 grid gap-4 text-sm sm:grid-cols-3">
+                    <div>
+                      <dt className="text-[var(--text-muted)]">Loại bệnh phẩm</dt>
+                      <dd className="mt-1 font-semibold">{item.specimenType}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-[var(--text-muted)]">Trả kết quả</dt>
+                      <dd className="mt-1 font-semibold">
+                        Khoảng {item.turnaroundTimeHours} giờ
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-[var(--text-muted)]">Giá tham khảo</dt>
+                      <dd className="mt-1 font-bold">{formatPrice(item.price)}</dd>
+                    </div>
+                  </dl>
+                </Card>
               ))}
             </section>
-            <aside className="h-fit rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:sticky lg:top-5">
-              <h2 className="text-lg font-bold">Tóm tắt</h2>
-              <dl className="mt-5 space-y-3 text-sm"><div className="flex justify-between gap-4"><dt>Tổng xét nghiệm</dt><dd className="font-bold">{availableItems.length}</dd></div><div className="flex justify-between gap-4 border-t border-slate-200 pt-4 text-base"><dt className="font-semibold">Tổng tiền</dt><dd className="font-bold">{formatPrice(total)}</dd></div></dl>
-              <p className="mt-4 text-xs leading-5 text-slate-600">Giá trong giỏ chỉ để tham khảo. Backend phải tính lại giá từ danh mục hiện hành khi tạo order.</p>
-              {availableItems.length === 0 || checking || checkError ? <span aria-disabled="true" className="mt-5 flex min-h-12 items-center justify-center rounded-xl bg-slate-200 px-4 text-center font-semibold text-slate-500">Tiếp tục đặt lịch</span> : <Link href="/dat-lich" className="mt-5 flex min-h-12 items-center justify-center rounded-xl bg-slate-900 px-4 text-center font-semibold text-white hover:bg-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2">Tiếp tục đặt lịch</Link>}
-              <Link href="/xet-nghiem" className="mt-3 flex min-h-11 items-center justify-center rounded-xl border border-slate-300 px-4 text-center font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-800">Quay lại danh mục</Link>
+
+            <aside
+              className="medical-panel h-fit p-5 lg:sticky lg:top-24"
+              aria-labelledby="cart-summary-title"
+            >
+              <h2 id="cart-summary-title" className="text-lg font-bold">
+                Tóm tắt
+              </h2>
+              <dl className="mt-5 space-y-3 text-sm">
+                <div className="flex justify-between gap-4">
+                  <dt>Tổng xét nghiệm</dt>
+                  <dd className="font-bold">{availableItems.length}</dd>
+                </div>
+                <div className="flex justify-between gap-4 border-t border-[var(--border)] pt-4 text-base">
+                  <dt className="font-semibold">Tạm tính</dt>
+                  <dd className="font-bold">{formatPrice(total)}</dd>
+                </div>
+              </dl>
+              <Alert className="mt-4" tone="info">
+                Giá cuối cùng được hệ thống xác nhận khi tạo đơn.
+              </Alert>
+              {availableItems.length === 0 || checking || checkError ? (
+                <span
+                  aria-disabled="true"
+                  className="mt-5 flex min-h-12 items-center justify-center rounded-[var(--radius-control)] bg-slate-200 px-4 text-center font-semibold text-slate-500"
+                >
+                  Tiếp tục đặt lịch
+                </span>
+              ) : (
+                <ButtonLink href="/dat-lich" className="mt-5 w-full">
+                  Tiếp tục đặt lịch
+                </ButtonLink>
+              )}
+              <Link
+                href="/xet-nghiem"
+                className="focus-ring mt-3 flex min-h-11 items-center justify-center rounded-[var(--radius-control)] border border-[var(--border-strong)] px-4 text-center font-semibold"
+              >
+                Quay lại danh mục
+              </Link>
             </aside>
           </div>
         )}
       </main>
+      <PublicFooter />
     </div>
   );
 }

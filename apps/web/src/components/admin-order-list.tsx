@@ -1,34 +1,423 @@
 "use client";
+
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { AdminApiError, AdminOrderList, formatMoney, getAdminOrders } from "@/lib/admin-orders";
+import {
+  AdminApiError,
+  AdminOrderList,
+  formatMoney,
+  getAdminOrders,
+} from "@/lib/admin-orders";
+import {
+  Alert,
+  Button,
+  Card,
+  EmptyState,
+  LoadingState,
+  PageHeader,
+  StatusBadge,
+  inputClass,
+} from "@/components/ui";
 
 export function AdminOrderListView() {
-  const router = useRouter(), pathname = usePathname(), searchParams = useSearchParams();
-  const [result, setResult] = useState<AdminOrderList | null>(null), [loading, setLoading] = useState(true), [error, setError] = useState("");
-  const [search, setSearch] = useState(searchParams.get("search") ?? ""), [refreshNonce, setRefreshNonce] = useState(0);
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const [result, setResult] = useState<AdminOrderList | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [search, setSearch] = useState(searchParams.get("search") ?? "");
+  const [refreshNonce, setRefreshNonce] = useState(0);
   const query = searchParams.toString();
-  useEffect(() => { let active = true;
+
+  useEffect(() => {
+    let active = true;
     // Fetch state is intentionally reset when the URL query changes.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setLoading(true); setError(""); getAdminOrders(query).then((value) => active && setResult(value)).catch((reason: unknown) => { if (!active) return; if (reason instanceof AdminApiError && reason.status === 401) router.replace("/admin/login"); else setError(reason instanceof Error ? reason.message : "Không thể tải đơn hàng."); }).finally(() => active && setLoading(false)); return () => { active = false; }; }, [query, router, refreshNonce]);
-  useEffect(() => { const timer = window.setTimeout(() => { const params = new URLSearchParams(searchParams.toString()); if (search.trim()) params.set("search", search.trim()); else params.delete("search"); params.delete("page"); if (params.toString() !== searchParams.toString()) router.replace(`${pathname}?${params}`); }, 400); return () => window.clearTimeout(timer); }, [search, pathname, router, searchParams]);
-  const setParam = (name: string, value: string) => { const params = new URLSearchParams(searchParams.toString()); if (value) params.set(name, value); else params.delete(name); if (name !== "page") params.delete("page"); router.replace(`${pathname}?${params}`); };
-  return <>
-    <div className="mt-6 grid gap-3 rounded-2xl bg-white p-4 shadow-sm md:grid-cols-4">
-      <label className="text-sm font-medium">Tìm kiếm<input aria-label="Tìm kiếm đơn hàng" value={search} onChange={(e) => setSearch(e.target.value)} className="mt-1 w-full rounded-lg border p-2 focus:ring-2 focus:ring-teal-600" placeholder="Mã đơn, tên hoặc điện thoại" /></label>
-      <label className="text-sm font-medium">Trạng thái<select value={searchParams.get("status") ?? ""} onChange={(e) => setParam("status", e.target.value)} className="mt-1 w-full rounded-lg border p-2"><option value="">Tất cả</option><option value="PENDING_CONFIRMATION">Chờ xác nhận</option><option value="CONFIRMED">Đã xác nhận</option><option value="COLLECTOR_ASSIGNED">Đã phân công</option><option value="COLLECTOR_ON_THE_WAY">Đang di chuyển</option><option value="COLLECTED">Đã lấy mẫu</option><option value="IN_TRANSIT">Đang vận chuyển</option><option value="RECEIVED_AT_LAB">Đã tới phòng xét nghiệm</option><option value="CANCELLED">Đã hủy</option></select></label>
-      <label className="text-sm font-medium">Lịch từ<input type="date" value={searchParams.get("appointmentDateFrom")?.slice(0,10) ?? ""} onChange={(e) => setParam("appointmentDateFrom", e.target.value ? `${e.target.value}T00:00:00+07:00` : "")} className="mt-1 w-full rounded-lg border p-2" /></label>
-      <label className="text-sm font-medium">Lịch đến<input type="date" value={searchParams.get("appointmentDateTo")?.slice(0,10) ?? ""} onChange={(e) => setParam("appointmentDateTo", e.target.value ? `${e.target.value}T23:59:59+07:00` : "")} className="mt-1 w-full rounded-lg border p-2" /></label>
-      <label className="text-sm font-medium">Tạo từ<input type="date" value={searchParams.get("createdFrom")?.slice(0,10) ?? ""} onChange={(e) => setParam("createdFrom", e.target.value ? `${e.target.value}T00:00:00+07:00` : "")} className="mt-1 w-full rounded-lg border p-2" /></label>
-      <label className="text-sm font-medium">Tạo đến<input type="date" value={searchParams.get("createdTo")?.slice(0,10) ?? ""} onChange={(e) => setParam("createdTo", e.target.value ? `${e.target.value}T23:59:59+07:00` : "")} className="mt-1 w-full rounded-lg border p-2" /></label>
-      <label className="text-sm font-medium">Sắp xếp<select value={searchParams.get("sortBy") ?? "createdAt"} onChange={(e) => setParam("sortBy", e.target.value)} className="mt-1 w-full rounded-lg border p-2"><option value="createdAt">Ngày tạo</option><option value="scheduledDate">Ngày lấy mẫu</option><option value="totalAmount">Tổng tiền</option></select></label>
-      <label className="text-sm font-medium">Thứ tự<select value={searchParams.get("sortOrder") ?? "desc"} onChange={(e) => setParam("sortOrder", e.target.value)} className="mt-1 w-full rounded-lg border p-2"><option value="desc">Mới nhất / giảm dần</option><option value="asc">Cũ nhất / tăng dần</option></select></label>
-      <div className="flex gap-2 md:col-span-4"><button onClick={() => { setSearch(""); router.replace(pathname); }} className="rounded-lg border px-4 py-2">Đặt lại</button><button onClick={() => setRefreshNonce((value) => value + 1)} className="rounded-lg bg-teal-700 px-4 py-2 text-white">Làm mới</button></div>
-    </div>
-    <div aria-live="polite">{loading && <p className="mt-6 rounded-xl bg-white p-6">Đang tải đơn hàng…</p>}{error && <p role="alert" className="mt-6 rounded-xl bg-red-50 p-6 text-red-800">{error}</p>}{!loading && !error && result?.data.length === 0 && <p className="mt-6 rounded-xl bg-white p-6">Không có đơn hàng phù hợp.</p>}</div>
-    {!loading && !error && result && result.data.length > 0 && <><div className="mt-6 hidden overflow-hidden rounded-2xl bg-white shadow-sm lg:block"><table className="w-full text-left text-sm"><caption className="sr-only">Danh sách đơn hàng</caption><thead className="bg-slate-50"><tr>{["Mã đơn","Khách hàng","Điện thoại","Lịch lấy mẫu","Khu vực","Xét nghiệm","Bệnh phẩm","Tổng tiền","Trạng thái","Ngày tạo",""].map((h) => <th key={h} className="p-3">{h}</th>)}</tr></thead><tbody>{result.data.map((o) => <tr key={o.orderCode} className="border-t"><td className="p-3 font-semibold">{o.orderCode}</td><td className="p-3">{o.contactName}</td><td className="p-3">{o.maskedPhone}</td><td className="p-3">{o.appointment ? `${date(o.appointment.scheduledDate)} · ${o.appointment.timeSlot}` : "—"}</td><td className="p-3">{o.appointment ? `${o.appointment.district}, ${o.appointment.province}` : "—"}</td><td className="p-3">{o.itemCount}</td><td className="p-3"><span>{o.specimenCount}</span>{o.rejectedSpecimenCount > 0 && <span className="ml-1 rounded bg-red-100 px-1.5 py-0.5 text-xs font-bold text-red-800">{o.rejectedSpecimenCount} từ chối</span>}{o.requiresRecollection && <span className="mt-1 block rounded bg-amber-100 px-1.5 py-0.5 text-xs font-bold text-amber-900">Cần lấy lại</span>}</td><td className="p-3">{formatMoney(o.totalAmount)}</td><td className="p-3">{o.statusLabel}</td><td className="p-3">{date(o.createdAt)}</td><td className="p-3"><Link className="font-semibold text-teal-700 underline" href={`/admin/orders/${o.orderCode}`}>Xem chi tiết</Link></td></tr>)}</tbody></table></div><div className="mt-6 grid gap-4 lg:hidden">{result.data.map((o) => <article key={o.orderCode} className="rounded-2xl bg-white p-5 shadow-sm"><div className="flex justify-between gap-3"><strong>{o.orderCode}</strong><span>{o.statusLabel}</span></div><p className="mt-2">{o.contactName} · {o.maskedPhone}</p><p>{o.appointment ? `${date(o.appointment.scheduledDate)} · ${o.appointment.timeSlot}` : "Chưa có lịch"}</p><p className="text-sm">{o.itemCount} xét nghiệm · {o.specimenCount} bệnh phẩm{o.rejectedSpecimenCount ? ` · ${o.rejectedSpecimenCount} bị từ chối` : ""}</p>{o.requiresRecollection && <p className="mt-2 inline-block rounded bg-amber-100 px-2 py-1 text-sm font-bold text-amber-900">Cần lấy lại bệnh phẩm</p>}<p className="font-semibold">{formatMoney(o.totalAmount)}</p><Link className="mt-3 inline-block text-teal-700 underline" href={`/admin/orders/${o.orderCode}`}>Xem chi tiết</Link></article>)}</div><nav aria-label="Phân trang" className="mt-6 flex items-center justify-between"><button disabled={result.pagination.page <= 1} onClick={() => setParam("page", String(result.pagination.page - 1))} className="rounded border px-4 py-2 disabled:opacity-40">Trang trước</button><span>Trang {result.pagination.page}/{Math.max(1,result.pagination.totalPages)}</span><button disabled={result.pagination.page >= result.pagination.totalPages} onClick={() => setParam("page", String(result.pagination.page + 1))} className="rounded border px-4 py-2 disabled:opacity-40">Trang sau</button></nav></>}
-  </>;
+    setLoading(true);
+    setError("");
+    getAdminOrders(query)
+      .then((value) => active && setResult(value))
+      .catch((reason: unknown) => {
+        if (!active) return;
+        if (reason instanceof AdminApiError && reason.status === 401) {
+          router.replace("/admin/login");
+        } else {
+          setError(
+            reason instanceof Error
+              ? reason.message
+              : "Không thể tải đơn hàng.",
+          );
+        }
+      })
+      .finally(() => active && setLoading(false));
+    return () => {
+      active = false;
+    };
+  }, [query, router, refreshNonce]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (search.trim()) params.set("search", search.trim());
+      else params.delete("search");
+      params.delete("page");
+      if (params.toString() !== searchParams.toString()) {
+        router.replace(`${pathname}?${params}`);
+      }
+    }, 400);
+    return () => window.clearTimeout(timer);
+  }, [search, pathname, router, searchParams]);
+
+  const setParam = (name: string, value: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (value) params.set(name, value);
+    else params.delete(name);
+    if (name !== "page") params.delete("page");
+    router.replace(`${pathname}?${params}`);
+  };
+
+  return (
+    <>
+      <PageHeader
+        eyebrow="Quản lý vận hành"
+        title="Đơn hàng"
+        description="Lọc, tìm kiếm và mở chi tiết đơn để xác nhận, hủy, đổi lịch hoặc xử lý phân công."
+        action={
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setRefreshNonce((value) => value + 1)}
+          >
+            Làm mới
+          </Button>
+        }
+      />
+
+      <Card className="mt-6 grid gap-4 p-4 md:grid-cols-4">
+        <label className="text-sm font-bold">
+          Tìm kiếm
+          <input
+            aria-label="Tìm kiếm đơn hàng"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            className={inputClass(false)}
+            placeholder="Mã đơn, tên hoặc điện thoại"
+          />
+        </label>
+        <SelectFilter
+          label="Trạng thái"
+          value={searchParams.get("status") ?? ""}
+          onChange={(value) => setParam("status", value)}
+          options={[
+            ["", "Tất cả"],
+            ["PENDING_CONFIRMATION", "Chờ xác nhận"],
+            ["CONFIRMED", "Đã xác nhận"],
+            ["COLLECTOR_ASSIGNED", "Đã phân công"],
+            ["COLLECTOR_ON_THE_WAY", "Đang di chuyển"],
+            ["COLLECTED", "Đã lấy mẫu"],
+            ["IN_TRANSIT", "Đang vận chuyển"],
+            ["RECEIVED_AT_LAB", "Đã tới phòng xét nghiệm"],
+            ["CANCELLED", "Đã hủy"],
+          ]}
+        />
+        <DateFilter
+          label="Lịch từ"
+          value={searchParams.get("appointmentDateFrom")?.slice(0, 10) ?? ""}
+          onChange={(value) =>
+            setParam(
+              "appointmentDateFrom",
+              value ? `${value}T00:00:00+07:00` : "",
+            )
+          }
+        />
+        <DateFilter
+          label="Lịch đến"
+          value={searchParams.get("appointmentDateTo")?.slice(0, 10) ?? ""}
+          onChange={(value) =>
+            setParam(
+              "appointmentDateTo",
+              value ? `${value}T23:59:59+07:00` : "",
+            )
+          }
+        />
+        <DateFilter
+          label="Tạo từ"
+          value={searchParams.get("createdFrom")?.slice(0, 10) ?? ""}
+          onChange={(value) =>
+            setParam("createdFrom", value ? `${value}T00:00:00+07:00` : "")
+          }
+        />
+        <DateFilter
+          label="Tạo đến"
+          value={searchParams.get("createdTo")?.slice(0, 10) ?? ""}
+          onChange={(value) =>
+            setParam("createdTo", value ? `${value}T23:59:59+07:00` : "")
+          }
+        />
+        <SelectFilter
+          label="Sắp xếp"
+          value={searchParams.get("sortBy") ?? "createdAt"}
+          onChange={(value) => setParam("sortBy", value)}
+          options={[
+            ["createdAt", "Ngày tạo"],
+            ["scheduledDate", "Ngày lấy mẫu"],
+            ["totalAmount", "Tổng tiền"],
+          ]}
+        />
+        <SelectFilter
+          label="Thứ tự"
+          value={searchParams.get("sortOrder") ?? "desc"}
+          onChange={(value) => setParam("sortOrder", value)}
+          options={[
+            ["desc", "Mới nhất / giảm dần"],
+            ["asc", "Cũ nhất / tăng dần"],
+          ]}
+        />
+        <div className="flex gap-2 md:col-span-4">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              setSearch("");
+              router.replace(pathname);
+            }}
+          >
+            Đặt lại
+          </Button>
+        </div>
+      </Card>
+
+      <div aria-live="polite" className="mt-6">
+        {loading && <LoadingState label="Đang tải đơn hàng" />}
+        {error && (
+          <Alert tone="danger" role="alert">
+            {error}
+          </Alert>
+        )}
+        {!loading && !error && result?.data.length === 0 && (
+          <EmptyState
+            title="Không có đơn hàng phù hợp"
+            description="Hãy thử bỏ bộ lọc hoặc tìm bằng mã đơn khác."
+          />
+        )}
+      </div>
+
+      {!loading && !error && result && result.data.length > 0 && (
+        <>
+          <div className="mt-6 hidden overflow-hidden rounded-[var(--radius-card)] border border-[var(--border)] bg-white lg:block">
+            <table className="w-full text-left text-sm">
+              <caption className="sr-only">Danh sách đơn hàng</caption>
+              <thead className="bg-[var(--surface-muted)] text-[var(--text-secondary)]">
+                <tr>
+                  {[
+                    "Mã đơn",
+                    "Khách hàng",
+                    "Điện thoại",
+                    "Lịch lấy mẫu",
+                    "Khu vực",
+                    "Xét nghiệm",
+                    "Bệnh phẩm",
+                    "Tổng tiền",
+                    "Trạng thái",
+                    "Ngày tạo",
+                    "",
+                  ].map((header) => (
+                    <th key={header} className="p-3 font-bold">
+                      {header}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {result.data.map((order) => (
+                  <tr key={order.orderCode} className="border-t border-[var(--border)]">
+                    <td className="p-3 font-mono font-bold">{order.orderCode}</td>
+                    <td className="p-3">{order.contactName}</td>
+                    <td className="p-3">{order.maskedPhone}</td>
+                    <td className="p-3">
+                      {order.appointment
+                        ? `${date(order.appointment.scheduledDate)} · ${order.appointment.timeSlot}`
+                        : "Chưa có lịch"}
+                    </td>
+                    <td className="p-3">
+                      {order.appointment
+                        ? `${order.appointment.district}, ${order.appointment.province}`
+                        : "—"}
+                    </td>
+                    <td className="p-3">{order.itemCount}</td>
+                    <td className="p-3">
+                      <span>{order.specimenCount}</span>
+                      {order.rejectedSpecimenCount > 0 && (
+                        <StatusBadge tone="danger" className="ml-1">
+                          {order.rejectedSpecimenCount} từ chối
+                        </StatusBadge>
+                      )}
+                      {order.requiresRecollection && (
+                        <div className="mt-1">
+                          <StatusBadge tone="warning">Cần lấy lại</StatusBadge>
+                        </div>
+                      )}
+                    </td>
+                    <td className="p-3 font-semibold">
+                      {formatMoney(order.totalAmount)}
+                    </td>
+                    <td className="p-3">
+                      <StatusBadge tone={statusTone(order.statusLabel)}>
+                        {order.statusLabel}
+                      </StatusBadge>
+                    </td>
+                    <td className="p-3">{date(order.createdAt)}</td>
+                    <td className="p-3">
+                      <Link
+                        className="font-semibold text-[var(--primary-800)] underline decoration-sky-200 underline-offset-4"
+                        href={`/admin/orders/${order.orderCode}`}
+                      >
+                        Xem chi tiết
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="mt-6 grid gap-4 lg:hidden">
+            {result.data.map((order) => (
+              <Card key={order.orderCode} as="article" className="p-5">
+                <div className="flex justify-between gap-3">
+                  <strong className="font-mono">{order.orderCode}</strong>
+                  <StatusBadge tone={statusTone(order.statusLabel)}>
+                    {order.statusLabel}
+                  </StatusBadge>
+                </div>
+                <p className="mt-3 font-semibold">{order.contactName}</p>
+                <p className="text-sm text-[var(--text-secondary)]">
+                  {order.maskedPhone}
+                </p>
+                <p className="mt-3 text-sm">
+                  {order.appointment
+                    ? `${date(order.appointment.scheduledDate)} · ${order.appointment.timeSlot}`
+                    : "Chưa có lịch"}
+                </p>
+                <p className="mt-2 text-sm text-[var(--text-secondary)]">
+                  {order.itemCount} xét nghiệm · {order.specimenCount} bệnh phẩm
+                  {order.rejectedSpecimenCount
+                    ? ` · ${order.rejectedSpecimenCount} bị từ chối`
+                    : ""}
+                </p>
+                {order.requiresRecollection && (
+                  <div className="mt-2">
+                    <StatusBadge tone="warning">
+                      Cần lấy lại bệnh phẩm
+                    </StatusBadge>
+                  </div>
+                )}
+                <p className="mt-3 font-bold">{formatMoney(order.totalAmount)}</p>
+                <Link
+                  className="mt-3 inline-block font-semibold text-[var(--primary-800)] underline decoration-sky-200 underline-offset-4"
+                  href={`/admin/orders/${order.orderCode}`}
+                >
+                  Xem chi tiết
+                </Link>
+              </Card>
+            ))}
+          </div>
+
+          <nav
+            aria-label="Phân trang"
+            className="mt-6 flex items-center justify-between gap-3"
+          >
+            <Button
+              type="button"
+              variant="outline"
+              disabled={result.pagination.page <= 1}
+              onClick={() => setParam("page", String(result.pagination.page - 1))}
+            >
+              Trang trước
+            </Button>
+            <span className="text-sm text-[var(--text-secondary)]">
+              Trang {result.pagination.page}/
+              {Math.max(1, result.pagination.totalPages)}
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={result.pagination.page >= result.pagination.totalPages}
+              onClick={() => setParam("page", String(result.pagination.page + 1))}
+            >
+              Trang sau
+            </Button>
+          </nav>
+        </>
+      )}
+    </>
+  );
 }
-const date = (value: string) => new Intl.DateTimeFormat("vi-VN", { dateStyle: "short", timeStyle: "short" }).format(new Date(value));
+
+function SelectFilter({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: readonly (readonly [string, string])[];
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="text-sm font-bold">
+      {label}
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className={inputClass(false)}
+      >
+        {options.map(([optionValue, text]) => (
+          <option key={`${label}-${optionValue}`} value={optionValue}>
+            {text}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+function DateFilter({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="text-sm font-bold">
+      {label}
+      <input
+        type="date"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className={inputClass(false)}
+      />
+    </label>
+  );
+}
+
+function statusTone(label: string): "neutral" | "info" | "success" | "warning" | "danger" {
+  const value = label.toLowerCase();
+  if (value.includes("hủy") || value.includes("từ chối")) return "danger";
+  if (value.includes("hoàn tất") || value.includes("đã lấy") || value.includes("chấp nhận")) return "success";
+  if (value.includes("chờ") || value.includes("cần")) return "warning";
+  if (value.includes("đang") || value.includes("xác nhận") || value.includes("phân công")) return "info";
+  return "neutral";
+}
+
+const date = (value: string) =>
+  new Intl.DateTimeFormat("vi-VN", {
+    dateStyle: "short",
+    timeStyle: "short",
+  }).format(new Date(value));

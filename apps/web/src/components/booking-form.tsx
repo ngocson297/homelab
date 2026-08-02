@@ -120,7 +120,7 @@ export function BookingForm() {
   }
 
   return (
-    <main className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-8 sm:py-12">
+    <main id="main-content" className="app-container py-8 sm:py-12">
       <BookingSteps current={2} />
       <div className="mt-8 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_21rem]">
         <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
@@ -236,5 +236,5 @@ function inputClass(hasError: boolean): string {
 }
 
 function BookingStatus({ message }: { message: string }) {
-  return <main className="mx-auto w-full max-w-3xl px-5 py-16"><div className="rounded-2xl border border-slate-200 bg-white p-8" role="status">{message}</div></main>;
+  return <main id="main-content" className="app-container max-w-3xl py-16"><div className="rounded-2xl border border-slate-200 bg-white p-8" role="status">{message}</div></main>;
 }

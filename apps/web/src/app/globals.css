@@ -1,8 +1,33 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #fafbfc;
+  --foreground: #17212b;
+  --surface: #ffffff;
+  --surface-muted: #f6f8fa;
+  --surface-subtle: #f2f9fc;
+  --border: #dde3e8;
+  --border-strong: #bdc9d4;
+  --text-primary: #17212b;
+  --text-secondary: #536273;
+  --text-muted: #73808c;
+  --primary-900: #123b5d;
+  --primary-800: #174c73;
+  --primary-700: #1d5f8c;
+  --primary-600: #2679a8;
+  --primary-100: #ddeff7;
+  --primary-50: #f2f9fc;
+  --success-700: #147052;
+  --success-50: #edf8f3;
+  --warning-800: #865b13;
+  --warning-50: #fff7e6;
+  --danger-700: #b42318;
+  --danger-50: #fff1f0;
+  --info-700: #1d5f8c;
+  --info-50: #eef7fc;
+  --radius-card: 16px;
+  --radius-control: 12px;
+  --shadow-soft: 0 1px 2px rgb(23 33 43 / 0.06), 0 12px 30px rgb(18 59 93 / 0.06);
 }
 
 @theme inline {
@@ -15,15 +40,109 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+::selection {
+  background: var(--primary-100);
+  color: var(--primary-900);
+}
+
+.app-container {
+  margin-inline: auto;
+  width: min(100% - 2rem, 76rem);
+}
+
+.focus-ring {
+  outline: none;
+}
+
+.focus-ring:focus-visible {
+  box-shadow: 0 0 0 3px rgb(38 121 168 / 0.28);
+}
+
+.medical-panel {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
+}
+
+.touch-target {
+  min-height: 44px;
+}
+
+.text-balance {
+  text-wrap: balance;
+}
+
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: #edf2f6;
+}
+
+.skeleton::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.75), transparent);
+  animation: skeleton-shimmer 1.4s infinite;
+}
+
+@keyframes skeleton-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
 }
 
 @media print {
-  @page { margin: 8mm; }
-  body { background: white; }
-  body > * { visibility: hidden; }
-  [role="dialog"], [role="dialog"] * { visibility: visible; }
-  [role="dialog"] { position: absolute; inset: 0; width: 100%; }
-  .no-print { display: none !important; }
-  .specimen-label { width: 72mm; min-height: 25mm; margin: 2mm; page-break-inside: avoid; }
+  @page {
+    margin: 8mm;
+  }
+  body {
+    background: white;
+  }
+  body > * {
+    visibility: hidden;
+  }
+  [role="dialog"],
+  [role="dialog"] * {
+    visibility: visible;
+  }
+  [role="dialog"] {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .specimen-label {
+    width: 72mm;
+    min-height: 25mm;
+    margin: 2mm;
+    page-break-inside: avoid;
+  }
 }
