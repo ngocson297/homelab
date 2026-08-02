@@ -1,6 +1,6 @@
 import type { LabTest } from "@/lib/lab-tests";
 
-export const CART_STORAGE_KEY = "homelab.lab-test-cart.v1";
+export const CART_STORAGE_KEY = "homelab.lab-test-cart.v2";
 
 export type CartItem = {
   id: string;
@@ -9,6 +9,7 @@ export type CartItem = {
   specimenType: string;
   turnaroundTimeHours: number;
   price: number;
+  homeCollectable: boolean;
   available: boolean;
 };
 
@@ -23,26 +24,6 @@ export type CartAction =
 
 export const initialCartState: CartState = { items: [], hydrated: false };
 
-function isCartItem(value: unknown): value is CartItem {
-  if (!isRecord(value)) return false;
-  const item = value;
-  return (
-    typeof item.id === "string" &&
-    typeof item.code === "string" &&
-    typeof item.name === "string" &&
-    typeof item.specimenType === "string" &&
-    Number.isSafeInteger(item.turnaroundTimeHours) &&
-    typeof item.price === "number" &&
-    Number.isFinite(item.price) &&
-    item.price >= 0 &&
-    typeof item.available === "boolean"
-  );
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
-
 export function labTestToCartItem(test: LabTest): CartItem {
   const price = Number(test.price);
   if (!Number.isFinite(price) || price < 0) {
@@ -55,7 +36,8 @@ export function labTestToCartItem(test: LabTest): CartItem {
     specimenType: test.specimenType,
     turnaroundTimeHours: test.turnaroundTimeHours,
     price,
-    available: test.status === "ACTIVE",
+    homeCollectable: test.homeCollectable,
+    available: test.status === "ACTIVE" && test.homeCollectable,
   };
 }
 
@@ -65,12 +47,26 @@ export function readCart(storage: Pick<Storage, "getItem">): CartItem[] {
     if (!raw) return [];
     const value: unknown = JSON.parse(raw);
     if (!Array.isArray(value)) return [];
-    const unique = new Map<string, CartItem>();
-    for (const item of value) if (isCartItem(item)) unique.set(item.id, item);
-    return [...unique.values()];
+    const ids = [
+      ...new Set(value.filter((item): item is string => typeof item === "string")),
+    ];
+    return ids.map((id) => ({
+      id,
+      code: "",
+      name: "Đang tải xét nghiệm…",
+      specimenType: "",
+      turnaroundTimeHours: 0,
+      price: 0,
+      homeCollectable: false,
+      available: false,
+    }));
   } catch {
     return [];
   }
+}
+
+export function serializeCart(items: CartItem[]): string {
+  return JSON.stringify(items.map((item) => item.id));
 }
 
 export function cartReducer(state: CartState, action: CartAction): CartState {

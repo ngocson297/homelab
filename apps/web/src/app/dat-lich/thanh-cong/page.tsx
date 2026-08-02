@@ -1,11 +1,11 @@
+import { BookingSuccess } from "@/components/booking-success";
 import { SiteHeader } from "@/components/site-header";
-import { BookingForm } from "@/components/booking-form";
 
-export default function BookingPage() {
+export default function BookingSuccessPage() {
   return (
     <div className="min-h-screen bg-[#f4f8f7] text-slate-900">
       <SiteHeader />
-      <BookingForm />
+      <BookingSuccess />
     </div>
   );
 }

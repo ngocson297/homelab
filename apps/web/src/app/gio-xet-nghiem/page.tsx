@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { SiteHeader } from "@/components/site-header";
+import { BookingSteps } from "@/components/booking-steps";
 import { useCart } from "@/components/cart-provider";
 import { calculateCartTotal, labTestToCartItem } from "@/lib/cart-state";
 import { fetchLabTestForCart } from "@/lib/client-lab-tests";
@@ -45,6 +46,7 @@ export default function CartPage() {
     <div className="min-h-screen bg-[#f4f8f7] text-slate-900">
       <SiteHeader />
       <main className="mx-auto w-full max-w-5xl px-5 py-8 sm:px-8 sm:py-12">
+        <BookingSteps current={1} />
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div><p className="text-sm font-semibold uppercase tracking-[0.16em] text-teal-800">Lab Test Cart</p><h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">Giỏ xét nghiệm</h1></div>
           {hydrated && items.length > 0 && <button type="button" onClick={clear} aria-label="Xóa toàn bộ giỏ xét nghiệm" className="min-h-11 rounded-lg border border-slate-300 px-4 text-sm font-semibold hover:border-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-800">Xóa toàn bộ</button>}

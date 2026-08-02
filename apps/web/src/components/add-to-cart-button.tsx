@@ -7,7 +7,8 @@ import type { LabTest } from "@/lib/lab-tests";
 export function AddToCartButton({ test }: { test: LabTest }) {
   const { items, hydrated, add } = useCart();
   const added = items.some((item) => item.id === test.id);
-  const disabled = !hydrated || added || test.status !== "ACTIVE";
+  const disabled =
+    !hydrated || added || test.status !== "ACTIVE" || !test.homeCollectable;
 
   return (
     <button
@@ -17,7 +18,15 @@ export function AddToCartButton({ test }: { test: LabTest }) {
       aria-label={added ? `${test.name} đã có trong giỏ` : `Thêm ${test.name} vào giỏ`}
       className="min-h-11 rounded-lg bg-teal-800 px-4 text-sm font-semibold text-white transition hover:bg-teal-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-800 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-600"
     >
-      {!hydrated ? "Đang tải giỏ…" : added ? "Đã thêm" : test.status === "INACTIVE" ? "Tạm ngưng" : "Thêm vào giỏ"}
+      {!hydrated
+        ? "Đang tải giỏ…"
+        : added
+          ? "Đã thêm"
+          : test.status === "INACTIVE"
+            ? "Tạm ngưng"
+            : !test.homeCollectable
+              ? "Không hỗ trợ tại nhà"
+              : "Thêm vào giỏ"}
     </button>
   );
 }

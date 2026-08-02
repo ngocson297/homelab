@@ -13,6 +13,7 @@ import {
   cartReducer,
   initialCartState,
   readCart,
+  serializeCart,
   type CartItem,
 } from "@/lib/cart-state";
 
@@ -36,7 +37,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (state.hydrated) {
-      window.localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(state.items));
+      window.localStorage.setItem(CART_STORAGE_KEY, serializeCart(state.items));
     }
   }, [state.hydrated, state.items]);
 
