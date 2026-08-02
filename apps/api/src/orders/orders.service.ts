@@ -74,6 +74,11 @@ export class OrdersService {
           code: true,
           name: true,
           specimenType: true,
+          containerType: true,
+          collectionGroupKey: true,
+          targetCollectionVolumeMl: true,
+          specimenPreparationInstruction: true,
+          transportInstruction: true,
           price: true,
         },
       });
@@ -124,6 +129,16 @@ export class OrdersService {
               testCodeSnapshot: test.code,
               testNameSnapshot: test.name,
               specimenTypeSnapshot: test.specimenType,
+              containerTypeSnapshot: test.containerType,
+              collectionGroupKeySnapshot: normalizeCollectionGroupKey(
+                test.collectionGroupKey,
+              ),
+              targetCollectionVolumeMlSnapshot:
+                test.targetCollectionVolumeMl,
+              preparationInstructionSnapshot:
+                test.specimenPreparationInstruction?.trim() || null,
+              transportInstructionSnapshot:
+                test.transportInstruction?.trim() || null,
               priceSnapshot: test.price,
             })),
           },
@@ -264,6 +279,11 @@ export class OrdersService {
 function normalizePhone(value: string): string {
   const compact = value.trim().replace(/[ .()-]/g, '');
   return compact.startsWith('+84') ? `0${compact.slice(3)}` : compact;
+}
+
+function normalizeCollectionGroupKey(value: string | null): string | null {
+  const normalized = value?.trim().toUpperCase();
+  return normalized || null;
 }
 
 function secureEqual(left: string, right: string): boolean {

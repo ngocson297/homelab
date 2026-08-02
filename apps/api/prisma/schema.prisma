@@ -31,21 +31,26 @@ enum LabTestStatus {
 }
 
 model LabTest {
-  id                     String        @id @default(uuid())
-  code                   String        @unique
-  name                   String
-  description            String?       @db.Text
-  specimenType           String
-  containerType          String
-  minimumVolumeMl        Decimal?      @db.Decimal(6, 2)
-  preparationInstruction String?       @db.Text
-  turnaroundTimeHours    Int
-  homeCollectable        Boolean       @default(false)
-  price                  Decimal       @db.Decimal(12, 2)
-  status                 LabTestStatus @default(ACTIVE)
-  createdAt              DateTime      @default(now())
-  updatedAt              DateTime      @updatedAt
-  orderItems             OrderItem[]
+  id                             String        @id @default(uuid())
+  code                           String        @unique
+  name                           String
+  description                    String?       @db.Text
+  specimenType                   String
+  containerType                  String
+  minimumVolumeMl                Decimal?      @db.Decimal(6, 2)
+  preparationInstruction         String?       @db.Text
+  collectionGroupKey             String?
+  targetCollectionVolumeMl       Decimal?      @db.Decimal(6, 2)
+  specimenPreparationInstruction String?       @db.Text
+  transportInstruction           String?       @db.Text
+  specimenStabilityHours         Int?
+  turnaroundTimeHours            Int
+  homeCollectable                Boolean       @default(false)
+  price                          Decimal       @db.Decimal(12, 2)
+  status                         LabTestStatus @default(ACTIVE)
+  createdAt                      DateTime      @default(now())
+  updatedAt                      DateTime      @updatedAt
+  orderItems                     OrderItem[]
 
   @@index([name])
   @@index([homeCollectable, status])
@@ -60,6 +65,7 @@ enum OrderStatus {
   COLLECTOR_ON_THE_WAY
   COLLECTED
   IN_TRANSIT
+  RECEIVED_AT_LAB
   CANCELLED
 }
 
@@ -76,6 +82,7 @@ model Order {
   updatedAt                  DateTime                     @updatedAt
   version                    Int                          @default(1)
   currentCollectorProfileId  String?
+  requiresRecollection       Boolean                      @default(false)
   items                      OrderItem[]
   appointment                Appointment?
   statusHistory              OrderStatusHistory[]
@@ -83,6 +90,7 @@ model Order {
   collectorAssignmentHistory CollectorAssignmentHistory[]
   subject                    OrderSubject?
   collectionAttempts         CollectionAttempt[]
+  specimens                  Specimen[]
 
   @@index([createdAt])
   @@index([currentCollectorProfileId])
@@ -121,16 +129,22 @@ model OrderStatusHistory {
 }
 
 model OrderItem {
-  id                   String   @id @default(uuid())
-  orderId              String
-  labTestId            String
-  testCodeSnapshot     String
-  testNameSnapshot     String
-  specimenTypeSnapshot String
-  priceSnapshot        Decimal  @db.Decimal(12, 2)
-  createdAt            DateTime @default(now())
-  order                Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  labTest              LabTest  @relation(fields: [labTestId], references: [id], onDelete: Restrict)
+  id                               String             @id @default(uuid())
+  orderId                          String
+  labTestId                        String
+  testCodeSnapshot                 String
+  testNameSnapshot                 String
+  specimenTypeSnapshot             String
+  containerTypeSnapshot            String
+  collectionGroupKeySnapshot       String?
+  targetCollectionVolumeMlSnapshot Decimal?           @db.Decimal(6, 2)
+  preparationInstructionSnapshot   String?            @db.Text
+  transportInstructionSnapshot     String?            @db.Text
+  priceSnapshot                    Decimal            @db.Decimal(12, 2)
+  createdAt                        DateTime           @default(now())
+  order                            Order              @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  labTest                          LabTest            @relation(fields: [labTestId], references: [id], onDelete: Restrict)
+  specimenLink                     SpecimenOrderItem?
 
   @@unique([orderId, labTestId])
   @@index([labTestId])
@@ -186,6 +200,8 @@ model StaffUser {
   auditLogs                     AdminAuditLog[]
   collectorProfile              CollectorProfile?
   performedCollectorAssignments CollectorAssignmentHistory[] @relation("AssignmentPerformer")
+  receivedSpecimens             Specimen[]                   @relation("SpecimenReceiver")
+  specimenCustodyEvents         SpecimenCustodyEvent[]       @relation("CustodyStaffActor")
 
   @@index([status])
 }
@@ -203,20 +219,22 @@ enum CollectorAssignmentAction {
 }
 
 model CollectorProfile {
-  id                  String                       @id @default(uuid())
-  staffUserId         String                       @unique
-  employeeCode        String                       @unique
-  phone               String
-  phoneNormalized     String
-  operationalStatus   CollectorOperationalStatus   @default(OFF_DUTY)
-  createdAt           DateTime                     @default(now())
-  updatedAt           DateTime                     @updatedAt
-  staffUser           StaffUser                    @relation(fields: [staffUserId], references: [id], onDelete: Restrict)
-  serviceAreas        CollectorServiceArea[]
-  currentOrders       Order[]                      @relation("CurrentCollector")
-  assignments         CollectorAssignmentHistory[] @relation("AssignedCollector")
-  previousAssignments CollectorAssignmentHistory[] @relation("PreviousCollector")
-  collectionAttempts  CollectionAttempt[]
+  id                    String                       @id @default(uuid())
+  staffUserId           String                       @unique
+  employeeCode          String                       @unique
+  phone                 String
+  phoneNormalized       String
+  operationalStatus     CollectorOperationalStatus   @default(OFF_DUTY)
+  createdAt             DateTime                     @default(now())
+  updatedAt             DateTime                     @updatedAt
+  staffUser             StaffUser                    @relation(fields: [staffUserId], references: [id], onDelete: Restrict)
+  serviceAreas          CollectorServiceArea[]
+  currentOrders         Order[]                      @relation("CurrentCollector")
+  assignments           CollectorAssignmentHistory[] @relation("AssignedCollector")
+  previousAssignments   CollectorAssignmentHistory[] @relation("PreviousCollector")
+  collectionAttempts    CollectionAttempt[]
+  collectedSpecimens    Specimen[]                   @relation("SpecimenCollector")
+  specimenCustodyEvents SpecimenCustodyEvent[]       @relation("CustodyCollectorActor")
 
   @@index([employeeCode])
   @@index([phoneNormalized])
@@ -325,4 +343,117 @@ model StaffSession {
 
   @@index([staffUserId])
   @@index([expiresAt])
+}
+
+enum SpecimenStatus {
+  PLANNED
+  LABELED
+  COLLECTED
+  IN_TRANSIT
+  RECEIVED
+  ACCEPTED
+  REJECTED
+  CANCELLED
+}
+
+enum SpecimenRejectionReason {
+  HEMOLYZED
+  CLOTTED
+  INSUFFICIENT_VOLUME
+  WRONG_CONTAINER
+  UNLABELED
+  LABEL_MISMATCH
+  LEAKING
+  TRANSPORT_TEMPERATURE_FAILED
+  TRANSPORT_DELAYED
+  DAMAGED
+  OTHER
+}
+
+enum SpecimenCustodyEventType {
+  SPECIMEN_PLANNED
+  LABEL_GENERATED
+  LABEL_PRINTED
+  SPECIMEN_COLLECTED
+  HANDED_TO_TRANSPORT
+  RECEIVED_AT_LAB
+  SPECIMEN_ACCEPTED
+  SPECIMEN_REJECTED
+}
+
+enum CustodyActorType {
+  SYSTEM
+  ADMIN
+  COLLECTOR
+  LAB_STAFF
+}
+
+model Specimen {
+  id                            String                   @id @default(uuid())
+  specimenCode                  String                   @unique
+  barcodeValue                  String                   @unique
+  orderId                       String
+  status                        SpecimenStatus
+  specimenType                  String
+  containerType                 String
+  collectionGroupKey            String?
+  targetVolumeMl                Decimal?                 @db.Decimal(6, 2)
+  collectedVolumeMl             Decimal?                 @db.Decimal(6, 2)
+  requiresManualReview          Boolean                  @default(false)
+  collectedAt                   DateTime?
+  collectedByCollectorProfileId String?
+  inTransitAt                   DateTime?
+  receivedAt                    DateTime?
+  receivedByStaffUserId         String?
+  acceptedAt                    DateTime?
+  rejectedAt                    DateTime?
+  rejectionReason               SpecimenRejectionReason?
+  rejectionNote                 String?                  @db.Text
+  recollectionRequired          Boolean                  @default(false)
+  version                       Int                      @default(1)
+  createdAt                     DateTime                 @default(now())
+  updatedAt                     DateTime                 @updatedAt
+  order                         Order                    @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  collectedBy                   CollectorProfile?        @relation("SpecimenCollector", fields: [collectedByCollectorProfileId], references: [id], onDelete: Restrict)
+  receivedBy                    StaffUser?               @relation("SpecimenReceiver", fields: [receivedByStaffUserId], references: [id], onDelete: Restrict)
+  orderItems                    SpecimenOrderItem[]
+  custodyEvents                 SpecimenCustodyEvent[]
+
+  @@index([orderId])
+  @@index([status])
+  @@index([collectedByCollectorProfileId])
+  @@index([receivedByStaffUserId])
+}
+
+model SpecimenOrderItem {
+  id          String    @id @default(uuid())
+  specimenId  String
+  orderItemId String    @unique
+  createdAt   DateTime  @default(now())
+  specimen    Specimen  @relation(fields: [specimenId], references: [id], onDelete: Restrict)
+  orderItem   OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Restrict)
+
+  @@unique([specimenId, orderItemId])
+  @@index([specimenId])
+}
+
+model SpecimenCustodyEvent {
+  id                      String                   @id @default(uuid())
+  specimenId              String
+  eventType               SpecimenCustodyEventType
+  actorType               CustodyActorType
+  actorStaffUserId        String?
+  actorCollectorProfileId String?
+  operationId             String                   @db.Uuid
+  occurredAt              DateTime                 @default(now())
+  metadata                Json?
+  createdAt               DateTime                 @default(now())
+  specimen                Specimen                 @relation(fields: [specimenId], references: [id], onDelete: Restrict)
+  actorStaffUser          StaffUser?               @relation("CustodyStaffActor", fields: [actorStaffUserId], references: [id], onDelete: Restrict)
+  actorCollectorProfile   CollectorProfile?        @relation("CustodyCollectorActor", fields: [actorCollectorProfileId], references: [id], onDelete: Restrict)
+
+  @@unique([specimenId, eventType, operationId])
+  @@index([specimenId, occurredAt])
+  @@index([actorStaffUserId, occurredAt])
+  @@index([actorCollectorProfileId, occurredAt])
 }
